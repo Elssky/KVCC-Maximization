@@ -202,7 +202,7 @@ vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& de
             cout << v << " ";
             int need = k-i; // v need how much edges to insert
             for(TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                if(!in_neighs[v].IsIn(*TI)) {
+                if(!in_neighs.GetDat(v).IsIn(*TI)) {
                     // insert_edges.Add({*TI, v});
                     cout << "(insert: " << *TI << " "<< v << ") "<< endl;
                     //b--;
