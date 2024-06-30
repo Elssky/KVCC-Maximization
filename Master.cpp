@@ -194,9 +194,10 @@ vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& de
 		S[index].AddMerged(*TI);
 
 	}
-
-    for(int i=k; i>0; i--){
+    int level;
+    for(int i=k; i>0;){
         cout<<"S["<<i<<"]: ";
+        level = i;
         for(int j=0; j<S[i].Len(); j++) {
             int v = S[i][j];
             cout << v << " ";
@@ -207,6 +208,11 @@ vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& de
                     cout << "(insert: " << *TI << " "<< v << ") "<< endl;
                     //b--;
                     acost++;
+                    if(acost >= b) {
+                        cout << "acost: " << acost << endl;
+                        cout << "gain: " << Expanded_Vertex.Len() << endl;
+                        terminate();
+                    }
                 }
                 need--;
                 if(need == 0) {
@@ -214,18 +220,26 @@ vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& de
                     Expanded_Vertex.Add(v);
                     cout<< "expanded: " << v << endl;
                     // v is expanded, update its neighbors
-                    update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex);
+                    update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex, level);
                     break; 
                 }
             }
             // cout<<S[i][j]<<" ";
         }
+        // exist a vertex in S[level] that is not expanded
+        if(level > i) {
+            i = level;
+        }
+        else {
+            i--;
+        }
+
         cout<<endl;
     }
     cout << "acost: " << acost << endl;
 }
 
-void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs, TIntIntVH& out_neighs, int v, TIntV& res) {
+void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs, TIntIntVH& out_neighs, int v, TIntV& res, int& level) {
     // res: new expanded vertices
 	TIntV neigh = out_neighs.GetDat(v);
 	//cout << neigh.Len() << endl;
@@ -243,14 +257,18 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs, TIntIntVH& out
 		int idx = in_neighs.GetDat(*NI).Len() - 1; //上面的循环已经更新过，所以这里为获得idx初始值应该-1
 		/*cout << idx << endl;*/
         cout<< "updated_idx: "<<idx+1 << " v:" << *NI << endl;
+        // 回到上一层
+        if(idx + 1 > level) {
+           level = idx + 1;
+        }
 		if (idx < 1) continue;
 		if (idx == k - 1) {
 			S[idx].DelIfIn(*NI);
 			//S[idx + 1].AddMerged(*NI);
-			res.Add(*NI);
+			res.AddMerged(*NI);
 			
 			in_neighs.GetDat(*NI) = {};
-			update_neighbour(S, in_neighs, out_neighs, *NI, res);
+			update_neighbour(S, in_neighs, out_neighs, *NI, res, level);
 		}
 		else if (idx < k - 1) {
 			S[idx].DelIfIn(*NI);
