@@ -26,7 +26,7 @@ void Master::Anchoring() {
 
         // Compute by Multiple Vertex Anchoring
         vector<double> group;
-        group = GroupSelection_test(kvcc, delta_S, delta_S_bar, Expanded_Vertex);
+        group = GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Expanded_Vertex);
         // group = GroupSelection(kvcc, delta_S, delta_S_bar);
     }
 }
@@ -155,7 +155,7 @@ void Master::Load_kvcc(TIntVIntV& kvcc_array) {
 	}
 }
 
-vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar, TIntV& Expanded_Vertex) {
+vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar, TIntV& Expanded_Vertex) {
     cout<<"kvcc: ";
     for(TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -195,6 +195,15 @@ vector<double> Master::GroupSelection_test(TIntV& G_S, TIntV& delta_S, TIntV& de
 
 	}
     int level;
+    for(int i=k; i>0; i--){
+        cout<<"S["<<i<<"]: ";
+        level = i;
+        for(int j=0; j<S[i].Len(); j++) {
+            int v = S[i][j];
+            cout << v << " ";
+        }
+        cout<<endl;
+    }
     for(int i=k; i>0;){
         cout<<"S["<<i<<"]: ";
         level = i;
