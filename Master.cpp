@@ -172,6 +172,7 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
                 // union neighs 数量达标, 可以随便选点
                 if (c_neighs.Len() >= k) {
                     if (acost >= b) {
+                        // TODO: 如果当前clique的budget不够，应该考虑所需budget更小的
                         // cout << "acost: " << acost << endl;
                         // cout << "gain: " << Expanded_Vertex.Len() << endl;
                         flag = 1;
@@ -206,9 +207,9 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
                 }
             }
         }
-        if (flag != 1 || flag == 1 &&
+        if (flag != 1 || (flag == 1 &&
             k - i - static_cast<int>(c.size()) + 1 <= 0 &&
-            c_neighs.Len() >= k) {
+            c_neighs.Len() >= k)) {
             for (auto& v : c) {
                 // v have k neighbors in kvcc
                 Expanded_Vertex.Add(v);
@@ -219,6 +220,7 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
             }
         }
         if (flag == 1) {
+            Expanded_Vertex.Merge();
             cout << "acost: " << acost << endl;
             cout << "gain: " << Expanded_Vertex.Len() << endl;
             terminate();
@@ -403,6 +405,7 @@ vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
             }
         }
         if (flag == 1) {
+            Expanded_Vertex.Merge();
             cout << "acost: " << acost << endl;
             cout << "gain: " << Expanded_Vertex.Len() << endl;
             terminate();
@@ -565,7 +568,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
         int idx = in_neighs.GetDat(*NI).Len() -
             1; //上面的循环已经更新过，所以这里为获得idx初始值应该-1
         /*cout << idx << endl;*/
-        cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
+        //cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
         // 回到上一层
         if (idx + 1 > level) {
             level = idx + 1;
@@ -576,7 +579,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
             S[idx].DelIfIn(*NI);
             // S[idx + 1].AddMerged(*NI);
             res.AddMerged(*NI);
-
+            cout<<"expanded by update: " << *NI << endl;
             in_neighs.GetDat(*NI) = {};
             update_neighbour(S, in_neighs, out_neighs, *NI, res, level);
         }
