@@ -75,11 +75,8 @@
     "C_Cpp.errorSquiggles": "disabled",
     "C_Cpp.clang_format_fallbackStyle": "Google",
     "C_Cpp.clang_format_path": "/usr/bin/clang-format",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "[cpp]": {
         "editor.defaultFormatter": "ms-vscode.cpptools"
     }
-
-    
-
 }

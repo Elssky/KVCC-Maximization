@@ -13,22 +13,22 @@ int main(int argc, char* argv[]) {
     const char* optstring = "a:d:b:k:s:m:e:t:";
     while ((o = getopt(argc, argv, optstring)) != -1) {
         switch (o) {
-            case 'a':
-                alg = optarg;
-                printf("opt is a, oprarg is: %s\n", optarg);
-                break;
-            case 'd':
-                dataset = optarg;
-                printf("opt is d, oprarg is: %s\n", optarg);
-                break;
-            case 'b':
-                b = atoi(optarg);
-                printf("opt is b, oprarg is: %s\n", optarg);
-                break;
-            case 'k':
-                k = atoi(optarg);
-                printf("opt is k, oprarg is: %s\n", optarg);
-                break;
+        case 'a':
+            alg = optarg;
+            printf("opt is a, oprarg is: %s\n", optarg);
+            break;
+        case 'd':
+            dataset = optarg;
+            printf("opt is d, oprarg is: %s\n", optarg);
+            break;
+        case 'b':
+            b = atoi(optarg);
+            printf("opt is b, oprarg is: %s\n", optarg);
+            break;
+        case 'k':
+            k = atoi(optarg);
+            printf("opt is k, oprarg is: %s\n", optarg);
+            break;
             // case 's':
             // 	seed = optarg;
             // 	printf("opt is s, oprarg is: %s\n", optarg);
@@ -45,9 +45,9 @@ int main(int argc, char* argv[]) {
             // 	threads = atoi(optarg);
             // 	printf("opt is t, oprarg is: %s\n", optarg);
             // 	break;
-            case '?':
-                printf("Correct Usage:\n");
-                return 0;
+        case '?':
+            printf("Correct Usage:\n");
+            return 0;
         }
     }
 
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         TSnap::LoadEdgeList<PUNGraph>("./dataset/" + dataset + ".txt", 0, 1);
 
     printf("G: \nnode_nums = %d, edge_nums = %d\n", G->GetNodes(),
-           G->GetEdges());
+        G->GetEdges());
 
     Master master(G, k, b);
     master.Anchoring(alg);
