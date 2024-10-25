@@ -29,22 +29,6 @@ int main(int argc, char* argv[]) {
             k = atoi(optarg);
             printf("opt is k, oprarg is: %s\n", optarg);
             break;
-            // case 's':
-            // 	seed = optarg;
-            // 	printf("opt is s, oprarg is: %s\n", optarg);
-            // 	break;
-            // case 'm':
-            // 	mergeMethod = optarg;
-            // 	printf("opt is m, oprarg is: %s\n", optarg);
-            // 	break;
-            // case 'e':
-            // 	expandMethod = optarg;
-            // 	printf("opt is e, oprarg is: %s\n", optarg);
-            // 	break;
-            // case 't':
-            // 	threads = atoi(optarg);
-            // 	printf("opt is t, oprarg is: %s\n", optarg);
-            // 	break;
         case '?':
             printf("Correct Usage:\n");
             return 0;
