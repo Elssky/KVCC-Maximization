@@ -1,7 +1,7 @@
 #include "Master.h"
 #include <unordered_set>
 #include <sstream>
-#define _DEBUG
+// #define _DEBUG
 #ifdef _DEBUG
     #define debug_print(msg) std::cout<<msg
 #else   
@@ -23,14 +23,6 @@ Master::Master(PUNGraph G, int k, int b) {
     this->b = b;
     this->k = k;
 }
-
-// Define a hash function for std::pair<int, int>
-struct pair_hash {
-    template <class T1, class T2>
-    std::size_t operator()(const std::pair<T1, T2>& pair) const {
-        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-    }
-};
 
 void Master::Anchoring(string alg, string vcc_data) {
     double t_begin = (double)clock();
