@@ -1,5 +1,7 @@
 {
     "files.associations": {
+        "*.json": "jsonc",
+        "*.cu": "cuda-cpp",
         "string": "cpp",
         "vector": "cpp",
         "__node_handle": "cpp",
@@ -70,7 +72,8 @@
         "thread": "cpp",
         "cfenv": "cpp",
         "cinttypes": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "unordered_set": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "C_Cpp.clang_format_fallbackStyle": "Google",

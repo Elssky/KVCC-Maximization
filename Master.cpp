@@ -1,10 +1,19 @@
 #include "Master.h"
-#define _DEBUG
+#include <unordered_set>
+// #define _DEBUG
 #ifdef _DEBUG
     #define debug_print(msg) std::cout<<msg
 #else   
     #define debug_print(msg)
 #endif
+
+// Define a hash function for std::pair<int, int>
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator()(const std::pair<T1, T2>& pair) const {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
 
 Master::Master(PUNGraph G, int k, int b) {
     this->G = G;
@@ -61,7 +70,7 @@ void Master::Anchoring(string alg) {
 vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
     TIntV& Expanded_Vertex) {
-
+    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -220,6 +229,8 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
                         break;  
                     }
                     // insert_edges.Add({*TI, v});
+                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                    Inserted_Edge.insert({*TI, v});
                     cout << "(insert: " << *TI << " " << v << ") " << endl;
                     // b--;
                     need--;
@@ -255,6 +266,7 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
 vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
     TIntV& Expanded_Vertex) {
+    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -405,6 +417,8 @@ vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
                         break;
                     }
                     // insert_edges.Add({*TI, v});
+                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                    Inserted_Edge.insert({*TI, v});
                     cout << "(insert: " << *TI << " " << v << ") " << endl;
                     // b--;
                     need--;
@@ -475,6 +489,7 @@ void Master::Load_kvcc(TIntVIntV& kvcc_array) {
 vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
     TIntV& Expanded_Vertex) {
+    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -525,11 +540,11 @@ vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S,
         debug_print(endl);
     }
     for (int i = k; i > 0;) {
-        debug_print( "S[" << i << "]: ");
+        debug_print( "S[" << i << "]: " << endl);
         level = i;
         for (int j = 0; j < S[i].Len(); j++) {
             int v = S[i][j];
-            debug_print( v << " ");
+            debug_print( "Selected Vertex:" <<  v << " " << endl);
             int need = k - i; // v need how much edges to insert
             for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
                 if (!in_neighs.GetDat(v).IsIn(*TI)) {
@@ -539,6 +554,8 @@ vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S,
                         return vector<double>{};
                     }
                     // insert_edges.Add({*TI, v});
+                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                    Inserted_Edge.insert({*TI, v});
                     cout << "(insert: " << *TI << " " << v << ") " << endl;
                     // b--;
 
@@ -584,8 +601,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
         }
     }
     for (TIntV::TIter NI = neigh.BegI(); NI < neigh.EndI(); NI++) {
-        int idx = in_neighs.GetDat(*NI).Len() -
-            1; //上面的循环已经更新过，所以这里为获得idx初始值应该-1
+        int idx = in_neighs.GetDat(*NI).Len() -1; //上面的循环已经更新过，所以这里为获得idx初始值应该-1
         /*cout << idx << endl;*/
         //cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
         // 回到上一层
@@ -604,7 +620,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
         }
         else if (idx < k - 1) {
             S[idx].DelIfIn(*NI);
-            S[idx + 1].AddMerged(*NI);
+            S[idx + 1].AddUnique(*NI);
         }
     }
 }

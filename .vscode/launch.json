@@ -14,7 +14,7 @@
                 "-b",
                 "10",
                 "-a",
-                "m"
+                "s"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
