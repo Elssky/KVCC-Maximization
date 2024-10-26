@@ -1,46 +1,23 @@
 #!/bin/bash
 # exp dataset
-# dataset="twitter_copen" # n=8580 f:0
-# dataset="pkustk02"
-# dataset="Email-Enron"
-# dataset="Facebook"
-# dataset="Gowalla" #n=63731 f:0
-# dataset="DBLP" #n=317080 f:0
-# dataset="Amazon"
-# dataset="soc-youtube"
-# dataset="Google" #n=875713 f:0
-# dataset="soc-lastfm"
-# dataset="pokec" #n=1632803 f:0
-# dataset="soc-flixster"
-# dataset="LiveJournal" #n=4847571 f:1
+# dataset="CA-GrQc"       # k = 3
+dataset="ca-HepPh"    # k = 3 / k = 4
+# dataset="ca-MathSciNet" # k = 5
+# dataset="email-enron-large" # k = 4, 5, 6, 7, 9
+# dataset="fb-pages-company"  # k = 
+# dataset="sc-shipsec1"     # k = 
+# dataset="sc-shipsec5"     # k = 6, 16, 18, 19, 20, 21, 22, 23, 24, 25, 27, 29, 50, 75, 100, 125
+# dataset="soc-epinions"    #
+# dataset="Stanford" # k = 15
+# dataset="web-arabic-2005" # k = 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 20, 30, 40, 60 
+# dataset="web-it-2004"     # k = 11, 13, 15, 17, 19, 22, 43
+# dataset="web-sk-2005"     # k = 4, 5, 6, 8, 10, 16, 24, 32, 48, 49, 54, 
+# dataset="web-uk-2005"     # k = 100, 150, 200, 250, 299, 300
+# dataset="web-webbase-2001"    # k = 1100, 1200, 1300, 1400,
 
-# useful dataset
-# dataset="Berkstan" # n=685230 f:0
-# dataset="BlogCatalog" #n=88784 f:0
-# dataset="orkut" #n=3072626 f:0
-# dataset="CA-CondMat" 
-
-# dataset=sample_graph
-# dataset="scc_reality" # n:6809 f:0
-# dataset="fb_messages" #n=1899 f:0
-# dataset="infect_dublin" #n=10972 f:0
-# dataset="fb-pages-food"
-# dataset="socfb-Bingham82"
-# dataset="ia-infect-hyper"
-# dataset="soc-dolphins"
-# dataset="Journals"
-# dataset="ck104"
-# dataset="polbooks"
-# dataset="fb-pages-sport"
-# dataset="fb-pages-public-figure"
-# dataset="air03"
-
-# pre_list=(0 1)  # 1 pre 0 without pre
-# mode_list=(0 1 2)  # 0 vertex 1 group 2 vertex+group
-# b_list=(10 50)
 alg_list=("m" "t" "s")
 b_list=(10)
-k_list=(5)
+k_list=(3)
 
 output_dir="./output/$dataset"
 if [ ! -d "$output_dir" ]; then
@@ -53,8 +30,7 @@ do
     do
         for alg in ${alg_list[@]}
         do
-            (/usr/bin/time -v nohup ./main -a $alg -d /home/public/lxw/datasets/${dataset}/${dataset}_new.txt -k $k -b $b) >&  ./output/$dataset/${dataset}_followers_b=${b}_k=${k}_alg=${alg}.txt
-            # echo ./output/$dataset/${dataset}_LhCDScvx_k=${k}_h=${h}_t=${t}.txt
+            (/usr/bin/time -v nohup ./main -a $alg -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/${dataset} -k $k -b $b -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/$dataset) >&  ./output/$dataset/${dataset}_followers_b=${b}_k=${k}_alg=${alg}_new.txt
         done
     done
 done

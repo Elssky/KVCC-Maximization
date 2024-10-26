@@ -1,6 +1,7 @@
 #include "Master.h"
 #include <unordered_set>
-// #define _DEBUG
+#include <sstream>
+#define _DEBUG
 #ifdef _DEBUG
     #define debug_print(msg) std::cout<<msg
 #else   
@@ -23,14 +24,22 @@ Master::Master(PUNGraph G, int k, int b) {
     this->k = k;
 }
 
-void Master::Anchoring(string alg) {
+// Define a hash function for std::pair<int, int>
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator()(const std::pair<T1, T2>& pair) const {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
+
+void Master::Anchoring(string alg, string vcc_data) {
     double t_begin = (double)clock();
     int round = 0;
     double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
     TIntVIntV kvcc_array;
     TIntV kvcc, delta_S, delta_S_bar;
     TIntV Expanded_Vertex;
-    Load_kvcc(kvcc_array);
+    Load_kvcc(kvcc_array, vcc_data);
     // select kvcc to expand
     kvcc = kvcc_array[1];
 
@@ -164,7 +173,7 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
             int flag = 0;
             vector<int> vec_cq;
             for (TIntV::TIter TI = cq->BegI(); TI < cq->EndI(); TI++) {
-                // seems can be deletd, all vertices idx greater than 0?
+                // seems can be deleted, all vertices idx greater than 0?
                 // int idx = in_neighs.GetDat(*TI).Len();
                 // if (idx == 0) {
                 //     flag = 1;
@@ -212,10 +221,11 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
                         flag = 2; // 满足条件，已经选完了
                         break;
                     }
+                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                    Inserted_Edge.insert({*TI, v});
                     cout << "(insert: " << *TI << " " << v << ") " << endl;
                     need--;
                     acost++;
-
                 }
                 // union neighs 数量不达标，必须从kvcc的其他点中选
                 else if (!c_neighs.IsIn(*TI)) {
@@ -469,9 +479,17 @@ TIntV Master::GetBoundary(TIntV G_S, TIntV& delta_S_bar) {
     return delta_S;
 }
 
-void Master::Load_kvcc(TIntVIntV& kvcc_array) {
+std::string createString(const std::string& vcc_data, int k) {
+    std::ostringstream oss;
+    oss << vcc_data << "_k=" << k << "_algorithm=VCCE.kvcc";  // 使用ostringstream进行拼接
+    return oss.str();  // 返回拼接后的字符串
+}
+
+void Master::Load_kvcc(TIntVIntV& kvcc_array, string vcc_data) {
     try {
-        TFIn inFile("CA-GrQc_k=5.kvcc");
+        string kvcc_data_name = createString(vcc_data, this->k);
+        cout << kvcc_data_name << endl;
+        TFIn inFile(kvcc_data_name.c_str());
         kvcc_array.Load(inFile);
         cout << kvcc_array.Len() << endl;
     }

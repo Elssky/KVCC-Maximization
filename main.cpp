@@ -10,7 +10,8 @@ int main(int argc, char* argv[]) {
     string alg;
     TStr dataset;
     int o;
-    const char* optstring = "a:d:b:k:s:m:e:t:";
+    string vcc_data;
+    const char* optstring = "a:d:b:k:c:s:m:e:t:";
     while ((o = getopt(argc, argv, optstring)) != -1) {
         switch (o) {
         case 'a':
@@ -21,6 +22,9 @@ int main(int argc, char* argv[]) {
             dataset = optarg;
             printf("opt is d, oprarg is: %s\n", optarg);
             break;
+        case 'c':
+            vcc_data = optarg;
+            printf("opt is c, oprarg is %s\n", optarg);
         case 'b':
             b = atoi(optarg);
             printf("opt is b, oprarg is: %s\n", optarg);
@@ -36,11 +40,11 @@ int main(int argc, char* argv[]) {
     }
 
     PUNGraph G =
-        TSnap::LoadEdgeList<PUNGraph>("./dataset/" + dataset + ".txt", 0, 1);
+        TSnap::LoadEdgeList<PUNGraph>(dataset + ".txt", 0, 1);
 
     printf("G: \nnode_nums = %d, edge_nums = %d\n", G->GetNodes(),
         G->GetEdges());
 
     Master master(G, k, b);
-    master.Anchoring(alg);
+    master.Anchoring(alg, vcc_data);
 }
