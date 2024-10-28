@@ -1,7 +1,7 @@
 #!/bin/bash
 # exp dataset
 # dataset="CA-GrQc"       # k = 3
-dataset="ca-HepPh"    # k = 3 / k = 4
+# dataset="ca-HepPh"    # k = 4
 # dataset="ca-MathSciNet" # k = 5
 # dataset="email-enron-large" # k = 4, 5, 6, 7, 9
 # dataset="fb-pages-company"  # k = 
@@ -13,11 +13,11 @@ dataset="ca-HepPh"    # k = 3 / k = 4
 # dataset="web-it-2004"     # k = 11, 13, 15, 17, 19, 22, 43
 # dataset="web-sk-2005"     # k = 4, 5, 6, 8, 10, 16, 24, 32, 48, 49, 54, 
 # dataset="web-uk-2005"     # k = 100, 150, 200, 250, 299, 300
-# dataset="web-webbase-2001"    # k = 1100, 1200, 1300, 1400,
+dataset="web-webbase-2001-all"    # k = 1100, 1200, 1300, 1400,
 
 alg_list=("m" "t" "s")
 b_list=(10)
-k_list=(3)
+k_list=(1100 1200 1300)
 
 output_dir="./output/$dataset"
 if [ ! -d "$output_dir" ]; then
@@ -30,7 +30,7 @@ do
     do
         for alg in ${alg_list[@]}
         do
-            (/usr/bin/time -v nohup ./main -a $alg -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/${dataset} -k $k -b $b -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/$dataset) >&  ./output/$dataset/${dataset}_followers_b=${b}_k=${k}_alg=${alg}_new.txt
+            (/usr/bin/time -v nohup ./main -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/${dataset} -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/$dataset -k $k -b $b -a $alg) >&  ./output/$dataset/${dataset}_followers_b=${b}_k=${k}_alg=${alg}.txt
         done
     done
 done

@@ -200,44 +200,46 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
             // 至少需要插入1条边
             debug_print( v << " " << endl);
             for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                // union neighs 数量达标, 可以随便选点
-                if (c_neighs.Len() >= k) {
-                    if (acost >= b) {
-                        // TODO: 如果当前clique的budget不够，应该考虑所需budget更小的
-                        // cout << "acost: " << acost << endl;
-                        // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                        flag = 1;
-                        break;
+                if (!in_neighs.GetDat(v).IsIn(*TI)) {
+                    // union neighs 数量达标, 可以随便选点
+                    if (c_neighs.Len() >= k) {
+                        if (acost >= b) {
+                            // TODO: 如果当前clique的budget不够，应该考虑所需budget更小的
+                            // cout << "acost: " << acost << endl;
+                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
+                            flag = 1;
+                            break;
+                        }
+                        if (need == 0) {
+                            flag = 2; // 满足条件，已经选完了
+                            break;
+                        }
+                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                        Inserted_Edge.insert({*TI, v});
+                        cout << "(insert: " << *TI << " " << v << ") " << endl;
+                        need--;
+                        acost++;
                     }
-                    if (need == 0) {
-                        flag = 2; // 满足条件，已经选完了
-                        break;
+                    // union neighs 数量不达标，必须从kvcc的其他点中选
+                    else if (!c_neighs.IsIn(*TI)) {
+                        if (acost >= b) {
+                            // cout << "acost: " << acost << endl;
+                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
+                            flag = 1;
+                            break;
+                        }
+                        if (need == 0) {
+                            break;  
+                        }
+                        // insert_edges.Add({*TI, v});
+                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                        Inserted_Edge.insert({*TI, v});
+                        cout << "(insert: " << *TI << " " << v << ") " << endl;
+                        // b--;
+                        need--;
+                        acost++;
+                        c_neighs.Add(*TI);
                     }
-                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                    Inserted_Edge.insert({*TI, v});
-                    cout << "(insert: " << *TI << " " << v << ") " << endl;
-                    need--;
-                    acost++;
-                }
-                // union neighs 数量不达标，必须从kvcc的其他点中选
-                else if (!c_neighs.IsIn(*TI)) {
-                    if (acost >= b) {
-                        // cout << "acost: " << acost << endl;
-                        // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                        flag = 1;
-                        break;
-                    }
-                    if (need == 0) {
-                        break;  
-                    }
-                    // insert_edges.Add({*TI, v});
-                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                    Inserted_Edge.insert({*TI, v});
-                    cout << "(insert: " << *TI << " " << v << ") " << endl;
-                    // b--;
-                    need--;
-                    acost++;
-                    c_neighs.Add(*TI);
                 }
             }
         }
@@ -391,41 +393,43 @@ vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
             // 至少需要插入1条边
             debug_print( v << " " << endl);
             for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                // union neighs 数量达标, 可以随便选点
-                if (c_neighs.Len() >= k) {
-                    if (acost >= b) {
-                        // cout << "acost: " << acost << endl;
-                        // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                        flag = 1;
-                        break;
-                    }
-                    if (need == 0) {
-                        break;
-                    }
-                    cout << "(insert: " << *TI << " " << v << ") " << endl;
-                    need--;
-                    acost++;
+                if (!in_neighs.GetDat(v).IsIn(*TI)) {
+                    // union neighs 数量达标, 可以随便选点
+                    if (c_neighs.Len() >= k) {
+                        if (acost >= b) {
+                            // cout << "acost: " << acost << endl;
+                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
+                            flag = 1;
+                            break;
+                        }
+                        if (need == 0) {
+                            break;
+                        }
+                        cout << "(insert: " << *TI << " " << v << ") " << endl;
+                        need--;
+                        acost++;
 
-                }
-                // union neighs 数量不达标，必须从kvcc的其他点中选
-                else if (!c_neighs.IsIn(*TI)) {
-                    if (acost >= b) {
-                        // cout << "acost: " << acost << endl;
-                        // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                        flag = 1;
-                        break;
                     }
-                    if (need == 0) {
-                        break;
+                    // union neighs 数量不达标，必须从kvcc的其他点中选
+                    else if (!c_neighs.IsIn(*TI)) {
+                        if (acost >= b) {
+                            // cout << "acost: " << acost << endl;
+                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
+                            flag = 1;
+                            break;
+                        }
+                        if (need == 0) {
+                            break;
+                        }
+                        // insert_edges.Add({*TI, v});
+                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+                        Inserted_Edge.insert({*TI, v});
+                        cout << "(insert: " << *TI << " " << v << ") " << endl;
+                        // b--;
+                        need--;
+                        acost++;
+                        c_neighs.Add(*TI);
                     }
-                    // insert_edges.Add({*TI, v});
-                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                    Inserted_Edge.insert({*TI, v});
-                    cout << "(insert: " << *TI << " " << v << ") " << endl;
-                    // b--;
-                    need--;
-                    acost++;
-                    c_neighs.Add(*TI);
                 }
             }
         }
