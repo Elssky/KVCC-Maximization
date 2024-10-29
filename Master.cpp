@@ -1,5 +1,4 @@
 #include "Master.h"
-#include <unordered_set>
 #include <sstream>
 // #define _DEBUG
 #ifdef _DEBUG
@@ -7,14 +6,6 @@
 #else   
     #define debug_print(msg)
 #endif
-
-// Define a hash function for std::pair<int, int>
-struct pair_hash {
-    template <class T1, class T2>
-    std::size_t operator()(const std::pair<T1, T2>& pair) const {
-        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-    }
-};
 
 Master::Master(PUNGraph G, int k, int b) {
     this->G = G;
@@ -34,7 +25,7 @@ void Master::Anchoring(string alg, string vcc_data) {
     Load_kvcc(kvcc_array, vcc_data);
     // select kvcc to expand
     kvcc = kvcc_array[1];
-
+    unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
     while (acost < b) {
         cout << " -- Anchoring round: " << round++ << endl;
         double vertex_begin = (double)clock();
@@ -42,21 +33,28 @@ void Master::Anchoring(string alg, string vcc_data) {
 
         // Compute by Multiple Vertex Anchoring
         vector<double> group;
-        if (alg == string("t")) {
+
+        
+        int insEdge_size = Inserted_Edge.size();
+        if (alg == string("t")) {     
             group =
-                GroupSelection_together(kvcc, delta_S, delta_S_bar, Expanded_Vertex);
+                GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
         }
         else if (alg == string("m")) {
             group =
-                GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Expanded_Vertex);
+                GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
         }
         else if (alg == string("s")) {
             group =
-                GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Expanded_Vertex);
+                GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
         }
         else {
             cout << "wrong alg parameter" <<endl;
             return;
+        }
+        // if no edge can be inserted, stop
+        if (insEdge_size == Inserted_Edge.size()) {
+            break;
         }
     }
     cout << "Expanded_Vertex:";
@@ -70,8 +68,8 @@ void Master::Anchoring(string alg, string vcc_data) {
 
 vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
-    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -269,8 +267,8 @@ vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
 
 vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
-    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
@@ -334,8 +332,7 @@ vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
         };
 
     priority_queue<pair<vector<int>, pair<int, int>>,
-        vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
-        clique_in_neighs(comp);
+        vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>        clique_in_neighs(comp);
 
     int level = 0;
     for (int i = k - 1; i > 0; i--) {
@@ -502,8 +499,8 @@ void Master::Load_kvcc(TIntVIntV& kvcc_array, string vcc_data) {
 
 vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S,
     TIntV& delta_S_bar,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
-    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
     cout << "kvcc: ";
     for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
         cout << *NI << " ";
