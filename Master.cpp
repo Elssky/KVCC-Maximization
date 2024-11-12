@@ -2,636 +2,627 @@
 #include <sstream>
 // #define _DEBUG
 #ifdef _DEBUG
-    #define debug_print(msg) std::cout<<msg
-#else   
-    #define debug_print(msg)
+#define debug_print(msg) std::cout << msg
+#else
+#define debug_print(msg)
 #endif
 
 Master::Master(PUNGraph G, int k, int b) {
-    this->G = G;
-    acost = 0;
-    nfs = 0;
-    this->b = b;
-    this->k = k;
+  this->G = G;
+  acost = 0;
+  nfs = 0;
+  this->b = b;
+  this->k = k;
 }
 
 void Master::Anchoring(string alg, string vcc_data) {
-    double t_begin = (double)clock();
-    int round = 0;
-    double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
-    TIntVIntV kvcc_array;
-    TIntV kvcc, delta_S, delta_S_bar;
-    TIntV Expanded_Vertex;
-    Load_kvcc(kvcc_array, vcc_data);
-    // select kvcc to expand
-    kvcc = kvcc_array[1];
-    unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-    while (acost < b) {
-        cout << " -- Anchoring round: " << round++ << endl;
-        double vertex_begin = (double)clock();
-        double node_score = 0;
+  double t_begin = (double)clock();
+  int round = 0;
+  double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+  TIntVIntV kvcc_array;
+  TIntV kvcc, delta_S, delta_S_bar;
+  TIntV Expanded_Vertex;
+  Load_kvcc(kvcc_array, vcc_data);
+  // select kvcc to expand
+  kvcc = kvcc_array[1];
+  unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+  while (acost < b) {
+    cout << " -- Anchoring round: " << round++ << endl;
+    double vertex_begin = (double)clock();
+    double node_score = 0;
 
-        // Compute by Multiple Vertex Anchoring
-        vector<double> group;
+    // Compute by Multiple Vertex Anchoring
+    vector<double> group;
 
-        
-        int insEdge_size = Inserted_Edge.size();
-        if (alg == string("t")) {     
-            group =
-                GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
-        }
-        else if (alg == string("m")) {
-            group =
-                GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
-        }
-        else if (alg == string("s")) {
-            group =
-                GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge, Expanded_Vertex);
-        }
-        else {
-            cout << "wrong alg parameter" <<endl;
-            return;
-        }
-        // if no edge can be inserted, stop
-        if (insEdge_size == Inserted_Edge.size()) {
-            break;
-        }
+    int insEdge_size = Inserted_Edge.size();
+    if (alg == string("t")) {
+      group = GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+                                      Expanded_Vertex);
+    } else if (alg == string("m")) {
+      group = GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar,
+                                          Inserted_Edge, Expanded_Vertex);
+    } else if (alg == string("s")) {
+      group = GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar,
+                                           Inserted_Edge, Expanded_Vertex);
+    } else if (alg == string("merge")) {
+      group = Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+    } else {
+      cout << "wrong alg parameter" << endl;
+      return;
     }
-    cout << "Expanded_Vertex:";
-    for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI(); NI++) {
-        cout << *NI << " ";
+    // if no edge can be inserted, stop
+    if (insEdge_size == Inserted_Edge.size()) {
+      break;
     }
-    cout << endl;
-    double t_end = (double)clock();
-    cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s." << endl;
+  }
+  cout << "Expanded_Vertex:";
+  for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
+       NI++) {
+    cout << *NI << " ";
+  }
+  cout << endl;
+  double t_end = (double)clock();
+  cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
+       << endl;
 }
 
-vector<double> Master::GroupSelection_together(TIntV& G_S, TIntV& delta_S,
-    TIntV& delta_S_bar,
+vector<double> Master::GroupSelection_together(
+    TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
-    cout << "kvcc: ";
-    for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
-        cout << *NI << " ";
+  cout << "kvcc: ";
+  for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
+    cout << *NI << " ";
+  }
+  cout << endl;
+
+  // calcuate one-hop neighbor of Graph G as candidate set
+  delta_S = GetBoundary(G_S, delta_S_bar);
+  TIntV G_sub = delta_S;
+  G_sub.AddVMerged(delta_S_bar);
+  PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+
+  // calculate the edge num from vertex in delta_S_bar to k-vcc,
+  // divide it into S_(k), S_(k-1), S_(k-2), ...
+  TIntVIntV S;
+  for (int i = 0; i <= k; i++) {
+    S.Add({});
+  }
+  TIntV res = {};
+  TIntV nb_u1 = {}, nb_u2 = {};
+
+  // in_neighs stores the neighbors of each candidate node belonging to k-vcc
+  // out_neighs stores the neighbors of each candidate node belonging to
+  // delta_S_bar
+  TIntIntVH in_neighs, out_neighs;
+  for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
+    nb_u1.Clr();
+    nb_u2.Clr();
+    TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
+    for (int i = 0; i < v.GetInDeg(); ++i) {
+      if (delta_S.IsIn(v.GetInNId(i)))  // only consider neighbors in
+        // k-vcc
+        nb_u1.AddMerged(v.GetInNId(i));
+      else
+        nb_u2.AddMerged(v.GetInNId(i));
     }
-    cout << endl;
+    in_neighs.AddDat(*TI, nb_u1);
+    out_neighs.AddDat(*TI, nb_u2);
+    int index = nb_u1.Len();
 
-    // calcuate one-hop neighbor of Graph G as candidate set
-    delta_S = GetBoundary(G_S, delta_S_bar);
-    TIntV G_sub = delta_S;
-    G_sub.AddVMerged(delta_S_bar);
-    PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+    // impossible situation
+    // if (index >= k) index = k;
+    S[index].AddMerged(*TI);
+  }
 
-    // calculate the edge num from vertex in delta_S_bar to k-vcc,
-    // divide it into S_(k), S_(k-1), S_(k-2), ...
-    TIntVIntV S;
-    for (int i = 0; i <= k; i++) {
-        S.Add({});
+  // calculate maximal cliques MC in each S
+  int num = 0;
+  TIntV S_total;
+  TIntVIntV cliques;
+  TIntVTIntVH cliques_neighs_union;
+
+  // use priority queue to select the clique with max size + level (|c| + i)
+  auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
+                 const std::pair<std::vector<int>, std::pair<int, int>>& b) {
+    const auto& a_first = a.second.first;
+    const auto& b_first = b.second.first;
+    const auto& a_second = a.second.second;
+    const auto& b_second = b.second.second;
+
+    return (a_first == b_first) ? (a_second > b_second) : (a_first < b_first);
+  };
+
+  priority_queue<pair<vector<int>, pair<int, int>>,
+                 vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
+      clique_in_neighs(comp);
+
+  int level = 0;
+  for (int i = k - 1; i > 0; i--) {
+    debug_print("S[" << i << "]: ");
+    for (int j = 0; j < S[i].Len(); j++) {
+      int v = S[i][j];
+      debug_print(v << " ");
     }
-    TIntV res = {};
-    TIntV nb_u1 = {}, nb_u2 = {};
+    debug_print(endl);
+    TIntV S_i = S[i];
+    TIntV neigh_Union;
+    TIntV S_i_temp;
 
-    // in_neighs stores the neighbors of each candidate node belonging to k-vcc
-    // out_neighs stores the neighbors of each candidate node belonging to
-    // delta_S_bar
-    TIntIntVH in_neighs, out_neighs;
-    for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
-        nb_u1.Clr();
-        nb_u2.Clr();
-        TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
-        for (int i = 0; i < v.GetInDeg(); ++i) {
-            if (delta_S.IsIn(v.GetInNId(i))) // only consider neighbors in
-                // k-vcc
-                nb_u1.AddMerged(v.GetInNId(i));
-            else
-                nb_u2.AddMerged(v.GetInNId(i));
-        }
-        in_neighs.AddDat(*TI, nb_u1);
-        out_neighs.AddDat(*TI, nb_u2);
-        int index = nb_u1.Len();
-
-        // impossible situation
-        // if (index >= k) index = k;
-        S[index].AddMerged(*TI);
+    S_total.Clr();
+    S_total.AddVMerged(S[i]);
+    // to be considered how to deal with?
+    // if (S_total.Len() < k - i + 1) continue;
+    PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
+    // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
+    // to be considered how to deal with clique size smaller than k - i + 1
+    TCliqueOverlap::GetMaxCliques(sub_G, 0, cliques);
+    // for (int clique_idx = 0; clique_idx < cliques.Len(); clique_idx++) {
+    for (TIntVIntV::TIter cq = cliques.BegI(); cq < cliques.EndI(); cq++) {
+      neigh_Union.Clr();
+      int flag = 0;
+      vector<int> vec_cq;
+      for (TIntV::TIter TI = cq->BegI(); TI < cq->EndI(); TI++) {
+        // seems can be deleted, all vertices idx greater than 0?
+        // int idx = in_neighs.GetDat(*TI).Len();
+        // if (idx == 0) {
+        //     flag = 1;
+        //     break;
+        // }
+        vec_cq.push_back(*TI);
+        neigh_Union.AddV(in_neighs.GetDat(*TI));
+      }
+      neigh_Union.Merge();
+      cliques_neighs_union.AddDat(*cq, neigh_Union);
+      clique_in_neighs.push({vec_cq, pair<int, int>(i + vec_cq.size(), i)});
+      vec_cq.clear();
     }
+  }
 
-    // calculate maximal cliques MC in each S
-    int num = 0;
-    TIntV S_total;
-    TIntVIntV cliques;
-    TIntVTIntVH cliques_neighs_union;
-
-    // use priority queue to select the clique with max size + level (|c| + i)
-    auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
-        const std::pair<std::vector<int>, std::pair<int, int>>& b) {
-            const auto& a_first = a.second.first;
-            const auto& b_first = b.second.first;
-            const auto& a_second = a.second.second;
-            const auto& b_second = b.second.second;
-
-            return (a_first == b_first) ? (a_second > b_second)
-                : (a_first < b_first);
-        };
-
-    priority_queue<pair<vector<int>, pair<int, int>>,
-        vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
-        clique_in_neighs(comp);
-
-    int level = 0;
-    for (int i = k - 1; i > 0; i--) {
-         debug_print( "S[" << i << "]: ");
-        for (int j = 0; j < S[i].Len(); j++) {
-            int v = S[i][j];
-             debug_print( v << " ");
-        }
-         debug_print(endl);
-        TIntV S_i = S[i];
-        TIntV neigh_Union;
-        TIntV S_i_temp;
-
-        S_total.Clr();
-        S_total.AddVMerged(S[i]);
-        // to be considered how to deal with?
-        // if (S_total.Len() < k - i + 1) continue;
-        PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
-        // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
-        // to be considered how to deal with clique size smaller than k - i + 1
-        TCliqueOverlap::GetMaxCliques(sub_G, 0, cliques);
-        // for (int clique_idx = 0; clique_idx < cliques.Len(); clique_idx++) {
-        for (TIntVIntV::TIter cq = cliques.BegI(); cq < cliques.EndI(); cq++) {
-            neigh_Union.Clr();
-            int flag = 0;
-            vector<int> vec_cq;
-            for (TIntV::TIter TI = cq->BegI(); TI < cq->EndI(); TI++) {
-                // seems can be deleted, all vertices idx greater than 0?
-                // int idx = in_neighs.GetDat(*TI).Len();
-                // if (idx == 0) {
-                //     flag = 1;
-                //     break;
-                // }
-                vec_cq.push_back(*TI);
-                neigh_Union.AddV(in_neighs.GetDat(*TI));
+  while (!clique_in_neighs.empty()) {
+    vector<int> c = clique_in_neighs.top().first;
+    int i = clique_in_neighs.top().second.second;
+    TIntV c_tmp;
+    int flag = 0;
+    for (auto& v : c) {
+      c_tmp.Add(v);
+    }
+    clique_in_neighs.pop();
+    TIntV c_neighs = cliques_neighs_union.GetDat(c_tmp);
+    for (auto& v : c) {
+      if (flag != 0) break;
+      int need = max(1, k - i - static_cast<int>(c.size()) +
+                            1);  // eahc v need how much edges to insert,
+      // 至少需要插入1条边
+      debug_print(v << " " << endl);
+      for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
+        if (!in_neighs.GetDat(v).IsIn(*TI)) {
+          // union neighs 数量达标, 可以随便选点
+          if (c_neighs.Len() >= k) {
+            if (acost >= b) {
+              // TODO: 如果当前clique的budget不够，应该考虑所需budget更小的
+              // cout << "acost: " << acost << endl;
+              // cout << "gain: " << Expanded_Vertex.Len() << endl;
+              flag = 1;
+              break;
             }
-            neigh_Union.Merge();
-            cliques_neighs_union.AddDat(*cq, neigh_Union);
-            clique_in_neighs.push(
-                { vec_cq, pair<int, int>(i + vec_cq.size(), i) });
-            vec_cq.clear();
-        }
-    }
-
-    while (!clique_in_neighs.empty()) {
-        vector<int> c = clique_in_neighs.top().first;
-        int i = clique_in_neighs.top().second.second;
-        TIntV c_tmp;
-        int flag = 0;
-        for (auto& v : c) {
-            c_tmp.Add(v);
-        }
-        clique_in_neighs.pop();
-        TIntV c_neighs = cliques_neighs_union.GetDat(c_tmp);
-        for (auto& v : c) {
-            if (flag != 0)
-                break;
-            int need = max(1, k - i - static_cast<int>(c.size()) +
-                1); // eahc v need how much edges to insert,
-            // 至少需要插入1条边
-            debug_print( v << " " << endl);
-            for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                if (!in_neighs.GetDat(v).IsIn(*TI)) {
-                    // union neighs 数量达标, 可以随便选点
-                    if (c_neighs.Len() >= k) {
-                        if (acost >= b) {
-                            // TODO: 如果当前clique的budget不够，应该考虑所需budget更小的
-                            // cout << "acost: " << acost << endl;
-                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                            flag = 1;
-                            break;
-                        }
-                        if (need == 0) {
-                            flag = 2; // 满足条件，已经选完了
-                            break;
-                        }
-                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                        Inserted_Edge.insert({*TI, v});
-                        cout << "(insert: " << *TI << " " << v << ") " << endl;
-                        need--;
-                        acost++;
-                    }
-                    // union neighs 数量不达标，必须从kvcc的其他点中选
-                    else if (!c_neighs.IsIn(*TI)) {
-                        if (acost >= b) {
-                            // cout << "acost: " << acost << endl;
-                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                            flag = 1;
-                            break;
-                        }
-                        if (need == 0) {
-                            break;  
-                        }
-                        // insert_edges.Add({*TI, v});
-                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                        Inserted_Edge.insert({*TI, v});
-                        cout << "(insert: " << *TI << " " << v << ") " << endl;
-                        // b--;
-                        need--;
-                        acost++;
-                        c_neighs.Add(*TI);
-                    }
-                }
+            if (need == 0) {
+              flag = 2;  // 满足条件，已经选完了
+              break;
             }
-        }
-        if (flag != 1 || (flag == 1 &&
-            k - i - static_cast<int>(c.size()) + 1 <= 0 &&
-            c_neighs.Len() >= k)) {
-            for (auto& v : c) {
-                // v have k neighbors in kvcc
-                Expanded_Vertex.Add(v);
-                debug_print( "expanded: " << v << endl);
-                // v is expanded, update its neighbors
-                update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex,
-                    level);
+            if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+            Inserted_Edge.insert({*TI, v});
+            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            need--;
+            acost++;
+          }
+          // union neighs 数量不达标，必须从kvcc的其他点中选
+          else if (!c_neighs.IsIn(*TI)) {
+            if (acost >= b) {
+              // cout << "acost: " << acost << endl;
+              // cout << "gain: " << Expanded_Vertex.Len() << endl;
+              flag = 1;
+              break;
             }
-        }
-        if (flag == 1) {
-            Expanded_Vertex.Merge();
-            cout << "acost: " << acost << endl;
-            cout << "gain: " << Expanded_Vertex.Len() << endl;
-            return vector<double>{};
-        }
-
-        cliques.Clr();
-    }
-    // how to select edge to insert
-}
-
-vector<double> Master::GroupSelection_multi_vertex(TIntV& G_S, TIntV& delta_S,
-    TIntV& delta_S_bar,
-    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
-    TIntV& Expanded_Vertex) {
-    cout << "kvcc: ";
-    for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
-        cout << *NI << " ";
-    }
-    cout << endl;
-    // calcuate one-hop neighbor of Graph G as candidate set
-    delta_S = GetBoundary(G_S, delta_S_bar);
-    TIntV G_sub = delta_S;
-    G_sub.AddVMerged(delta_S_bar);
-    PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
-
-    // calculate the edge num from vertex in delta_S_bar to k-vcc,
-    // divide it into S_(k), S_(k-1), S_(k-2), ...
-    TIntVIntV S;
-    for (int i = 0; i <= k; i++) {
-        S.Add({});
-    }
-    TIntV res = {};
-    TIntV nb_u1 = {}, nb_u2 = {};
-
-    // in_neighs stores the neighbors of each candidate node belonging to k-vcc
-    // out_neighs stores the neighbors of each candidate node belonging to
-    // delta_S_bar
-    TIntIntVH in_neighs, out_neighs;
-    for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
-        nb_u1.Clr();
-        nb_u2.Clr();
-        TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
-        for (int i = 0; i < v.GetInDeg(); ++i) {
-            if (delta_S.IsIn(v.GetInNId(i))) // only consider neighbors in
-                // k-vcc
-                nb_u1.AddMerged(v.GetInNId(i));
-            else
-                nb_u2.AddMerged(v.GetInNId(i));
-        }
-        in_neighs.AddDat(*TI, nb_u1);
-        out_neighs.AddDat(*TI, nb_u2);
-        int index = nb_u1.Len();
-
-        // impossible situation
-        // if (index >= k) index = k;
-        S[index].AddMerged(*TI);
-    }
-
-    // calculate maximal cliques MC in each S
-    int num = 0;
-    TIntV S_total;
-    TIntVIntV cliques;
-    TIntVTIntVH cliques_neighs_union;
-
-    // use priority queue to select the clique with max size + level (|c| + i)
-    auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
-        const std::pair<std::vector<int>, std::pair<int, int>>& b) {
-            const auto& a_first = a.second.first;
-            const auto& b_first = b.second.first;
-            const auto& a_second = a.second.second;
-            const auto& b_second = b.second.second;
-
-            return (a_first == b_first) ? (a_second > b_second)
-                : (a_first < b_first);
-        };
-
-    priority_queue<pair<vector<int>, pair<int, int>>,
-        vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>        clique_in_neighs(comp);
-
-    int level = 0;
-    for (int i = k - 1; i > 0; i--) {
-        debug_print( "S[" << i << "]: ");
-        TIntV S_i = S[i];
-        TIntV neigh_Union;
-        TIntV S_i_temp;
-
-        S_total.Clr();
-        S_total.AddVMerged(S[i]);
-        // to be considered how to deal with?
-        // if (S_total.Len() < k - i + 1) continue;
-        PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
-        // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
-        // to be considered how to deal with clique size smaller than k - i + 1
-        TCliqueOverlap::GetMaxCliques(sub_G, 0, cliques);
-        // for (int clique_idx = 0; clique_idx < cliques.Len(); clique_idx++) {
-        for (TIntVIntV::TIter cq = cliques.BegI(); cq < cliques.EndI(); cq++) {
-            neigh_Union.Clr();
-            int flag = 0;
-            vector<int> vec_cq;
-            for (TIntV::TIter TI = cq->BegI(); TI < cq->EndI(); TI++) {
-                // seems can be deletd, all vertices idx greater than 0?
-                // int idx = in_neighs.GetDat(*TI).Len();
-                // if (idx == 0) {
-                //     flag = 1;
-                //     break;
-                // }
-                vec_cq.push_back(*TI);
-                neigh_Union.AddV(in_neighs.GetDat(*TI));
+            if (need == 0) {
+              break;
             }
-            neigh_Union.Merge();
-            cliques_neighs_union.AddDat(*cq, neigh_Union);
-            clique_in_neighs.push(
-                { vec_cq, pair<int, int>(i + vec_cq.size(), i) });
-            vec_cq.clear();
+            // insert_edges.Add({*TI, v});
+            if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+            Inserted_Edge.insert({*TI, v});
+            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            // b--;
+            need--;
+            acost++;
+            c_neighs.Add(*TI);
+          }
         }
-
-        // (clique_in_neighs.empty()) continue;
-        if (clique_in_neighs.empty())
-            continue;
-        vector<int> c = clique_in_neighs.top().first;
-        TIntV c_tmp;
-        int flag = 0;
-        for (auto& v : c) {
-            c_tmp.Add(v);
-        }
-        clique_in_neighs.pop();
-        TIntV c_neighs = cliques_neighs_union.GetDat(c_tmp);
-        for (auto& v : c) {
-            if (flag == 1)
-                break;
-            int need = max(1, k - i - static_cast<int>(c.size()) +
-                1); // eahc v need how much edges to insert,
-            // 至少需要插入1条边
-            debug_print( v << " " << endl);
-            for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                if (!in_neighs.GetDat(v).IsIn(*TI)) {
-                    // union neighs 数量达标, 可以随便选点
-                    if (c_neighs.Len() >= k) {
-                        if (acost >= b) {
-                            // cout << "acost: " << acost << endl;
-                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                            flag = 1;
-                            break;
-                        }
-                        if (need == 0) {
-                            break;
-                        }
-                        cout << "(insert: " << *TI << " " << v << ") " << endl;
-                        need--;
-                        acost++;
-
-                    }
-                    // union neighs 数量不达标，必须从kvcc的其他点中选
-                    else if (!c_neighs.IsIn(*TI)) {
-                        if (acost >= b) {
-                            // cout << "acost: " << acost << endl;
-                            // cout << "gain: " << Expanded_Vertex.Len() << endl;
-                            flag = 1;
-                            break;
-                        }
-                        if (need == 0) {
-                            break;
-                        }
-                        // insert_edges.Add({*TI, v});
-                        if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                        Inserted_Edge.insert({*TI, v});
-                        cout << "(insert: " << *TI << " " << v << ") " << endl;
-                        // b--;
-                        need--;
-                        acost++;
-                        c_neighs.Add(*TI);
-                    }
-                }
-            }
-        }
-        if (flag == 0 || flag == 1 &&
-            k - i - static_cast<int>(c.size()) + 1 <= 0 &&
-            c_neighs.Len() >= k) {
-            for (auto& v : c) {
-                // v have k neighbors in kvcc
-                Expanded_Vertex.Add(v);
-                debug_print( "expanded: " << v << endl);
-                // v is expanded, update its neighbors
-                update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex,
-                    level);
-            }
-        }
-        if (flag == 1) {
-            Expanded_Vertex.Merge();
-            cout << "acost: " << acost << endl;
-            cout << "gain: " << Expanded_Vertex.Len() << endl;
-            return vector<double>{};
-        }
+      }
     }
+    if (flag != 1 ||
+        (flag == 1 && k - i - static_cast<int>(c.size()) + 1 <= 0 &&
+         c_neighs.Len() >= k)) {
+      for (auto& v : c) {
+        // v have k neighbors in kvcc
+        Expanded_Vertex.Add(v);
+        debug_print("expanded: " << v << endl);
+        // v is expanded, update its neighbors
+        update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex, level);
+      }
+    }
+    if (flag == 1) {
+      Expanded_Vertex.Merge();
+      cout << "acost: " << acost << endl;
+      cout << "gain: " << Expanded_Vertex.Len() << endl;
+      return vector<double>{};
+    }
+
     cliques.Clr();
-    // how to select edge to insert
+  }
+  // how to select edge to insert
+}
+
+vector<double> Master::GroupSelection_multi_vertex(
+    TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+    TIntV& Expanded_Vertex) {
+  cout << "kvcc: ";
+  for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
+    cout << *NI << " ";
+  }
+  cout << endl;
+  // calcuate one-hop neighbor of Graph G as candidate set
+  delta_S = GetBoundary(G_S, delta_S_bar);
+  TIntV G_sub = delta_S;
+  G_sub.AddVMerged(delta_S_bar);
+  PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+
+  // calculate the edge num from vertex in delta_S_bar to k-vcc,
+  // divide it into S_(k), S_(k-1), S_(k-2), ...
+  TIntVIntV S;
+  for (int i = 0; i <= k; i++) {
+    S.Add({});
+  }
+  TIntV res = {};
+  TIntV nb_u1 = {}, nb_u2 = {};
+
+  // in_neighs stores the neighbors of each candidate node belonging to k-vcc
+  // out_neighs stores the neighbors of each candidate node belonging to
+  // delta_S_bar
+  TIntIntVH in_neighs, out_neighs;
+  for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
+    nb_u1.Clr();
+    nb_u2.Clr();
+    TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
+    for (int i = 0; i < v.GetInDeg(); ++i) {
+      if (delta_S.IsIn(v.GetInNId(i)))  // only consider neighbors in
+        // k-vcc
+        nb_u1.AddMerged(v.GetInNId(i));
+      else
+        nb_u2.AddMerged(v.GetInNId(i));
+    }
+    in_neighs.AddDat(*TI, nb_u1);
+    out_neighs.AddDat(*TI, nb_u2);
+    int index = nb_u1.Len();
+
+    // impossible situation
+    // if (index >= k) index = k;
+    S[index].AddMerged(*TI);
+  }
+
+  // calculate maximal cliques MC in each S
+  int num = 0;
+  TIntV S_total;
+  TIntVIntV cliques;
+  TIntVTIntVH cliques_neighs_union;
+
+  // use priority queue to select the clique with max size + level (|c| + i)
+  auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
+                 const std::pair<std::vector<int>, std::pair<int, int>>& b) {
+    const auto& a_first = a.second.first;
+    const auto& b_first = b.second.first;
+    const auto& a_second = a.second.second;
+    const auto& b_second = b.second.second;
+
+    return (a_first == b_first) ? (a_second > b_second) : (a_first < b_first);
+  };
+
+  priority_queue<pair<vector<int>, pair<int, int>>,
+                 vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
+      clique_in_neighs(comp);
+
+  int level = 0;
+  for (int i = k - 1; i > 0; i--) {
+    debug_print("S[" << i << "]: ");
+    TIntV S_i = S[i];
+    TIntV neigh_Union;
+    TIntV S_i_temp;
+
+    S_total.Clr();
+    S_total.AddVMerged(S[i]);
+    // to be considered how to deal with?
+    // if (S_total.Len() < k - i + 1) continue;
+    PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
+    // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
+    // to be considered how to deal with clique size smaller than k - i + 1
+    TCliqueOverlap::GetMaxCliques(sub_G, 0, cliques);
+    // for (int clique_idx = 0; clique_idx < cliques.Len(); clique_idx++) {
+    for (TIntVIntV::TIter cq = cliques.BegI(); cq < cliques.EndI(); cq++) {
+      neigh_Union.Clr();
+      int flag = 0;
+      vector<int> vec_cq;
+      for (TIntV::TIter TI = cq->BegI(); TI < cq->EndI(); TI++) {
+        // seems can be deletd, all vertices idx greater than 0?
+        // int idx = in_neighs.GetDat(*TI).Len();
+        // if (idx == 0) {
+        //     flag = 1;
+        //     break;
+        // }
+        vec_cq.push_back(*TI);
+        neigh_Union.AddV(in_neighs.GetDat(*TI));
+      }
+      neigh_Union.Merge();
+      cliques_neighs_union.AddDat(*cq, neigh_Union);
+      clique_in_neighs.push({vec_cq, pair<int, int>(i + vec_cq.size(), i)});
+      vec_cq.clear();
+    }
+
+    // (clique_in_neighs.empty()) continue;
+    if (clique_in_neighs.empty()) continue;
+    vector<int> c = clique_in_neighs.top().first;
+    TIntV c_tmp;
+    int flag = 0;
+    for (auto& v : c) {
+      c_tmp.Add(v);
+    }
+    clique_in_neighs.pop();
+    TIntV c_neighs = cliques_neighs_union.GetDat(c_tmp);
+    for (auto& v : c) {
+      if (flag == 1) break;
+      int need = max(1, k - i - static_cast<int>(c.size()) +
+                            1);  // eahc v need how much edges to insert,
+      // 至少需要插入1条边
+      debug_print(v << " " << endl);
+      for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
+        if (!in_neighs.GetDat(v).IsIn(*TI)) {
+          // union neighs 数量达标, 可以随便选点
+          if (c_neighs.Len() >= k) {
+            if (acost >= b) {
+              // cout << "acost: " << acost << endl;
+              // cout << "gain: " << Expanded_Vertex.Len() << endl;
+              flag = 1;
+              break;
+            }
+            if (need == 0) {
+              break;
+            }
+            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            need--;
+            acost++;
+
+          }
+          // union neighs 数量不达标，必须从kvcc的其他点中选
+          else if (!c_neighs.IsIn(*TI)) {
+            if (acost >= b) {
+              // cout << "acost: " << acost << endl;
+              // cout << "gain: " << Expanded_Vertex.Len() << endl;
+              flag = 1;
+              break;
+            }
+            if (need == 0) {
+              break;
+            }
+            // insert_edges.Add({*TI, v});
+            if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+            Inserted_Edge.insert({*TI, v});
+            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            // b--;
+            need--;
+            acost++;
+            c_neighs.Add(*TI);
+          }
+        }
+      }
+    }
+    if (flag == 0 || flag == 1 && k - i - static_cast<int>(c.size()) + 1 <= 0 &&
+                         c_neighs.Len() >= k) {
+      for (auto& v : c) {
+        // v have k neighbors in kvcc
+        Expanded_Vertex.Add(v);
+        debug_print("expanded: " << v << endl);
+        // v is expanded, update its neighbors
+        update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex, level);
+      }
+    }
+    if (flag == 1) {
+      Expanded_Vertex.Merge();
+      cout << "acost: " << acost << endl;
+      cout << "gain: " << Expanded_Vertex.Len() << endl;
+      return vector<double>{};
+    }
+  }
+  cliques.Clr();
+  // how to select edge to insert
 }
 
 TIntV Master::GetBoundary(TIntV G_S, TIntV& delta_S_bar) {
-    TIntV delta_S;
-    delta_S.Clr();
-    delta_S_bar.Clr();
+  TIntV delta_S;
+  delta_S.Clr();
+  delta_S_bar.Clr();
 
-    for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
-        TUNGraph::TNodeI Node = G->GetNI(*NI);
-        for (int i = 0; i < Node.GetInDeg(); i++) {
-            if (!G_S.IsIn(Node.GetNbrNId(i))) {
-                delta_S.Add(Node.GetId());
-                delta_S_bar.Add(Node.GetNbrNId(i));
-            }
-        }
+  for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
+    TUNGraph::TNodeI Node = G->GetNI(*NI);
+    for (int i = 0; i < Node.GetInDeg(); i++) {
+      if (!G_S.IsIn(Node.GetNbrNId(i))) {
+        delta_S.Add(Node.GetId());
+        delta_S_bar.Add(Node.GetNbrNId(i));
+      }
     }
-    delta_S.Merge();
-    delta_S_bar.Merge();
-    return delta_S;
+  }
+  delta_S.Merge();
+  delta_S_bar.Merge();
+  return delta_S;
 }
 
 std::string createString(const std::string& vcc_data, int k) {
-    std::ostringstream oss;
-    oss << vcc_data << "_k=" << k << "_algorithm=VCCE.kvcc";  // 使用ostringstream进行拼接
-    return oss.str();  // 返回拼接后的字符串
+  std::ostringstream oss;
+  oss << vcc_data << "_k=" << k
+      << "_algorithm=VCCE.kvcc";  // 使用ostringstream进行拼接
+  return oss.str();               // 返回拼接后的字符串
 }
 
 void Master::Load_kvcc(TIntVIntV& kvcc_array, string vcc_data) {
-    try {
-        string kvcc_data_name = createString(vcc_data, this->k);
-        cout << kvcc_data_name << endl;
-        TFIn inFile(kvcc_data_name.c_str());
-        kvcc_array.Load(inFile);
-        cout << kvcc_array.Len() << endl;
-    }
-    catch (TPt<TExcept>) {
-        cout << endl << "***kvcc result does not exist.***" << endl;
-    }
-    for (TIntVIntV::TIter TI = kvcc_array.BegI(); TI < kvcc_array.EndI();
-        TI++) {
-        PUNGraph G_kvcc = TSnap::GetSubGraph(G, *TI);
-        debug_print("kvcc_nodes: " << G_kvcc->GetNodes()
-            << " kvcc_edges: " << G_kvcc->GetEdges() << endl);
-    }
+  try {
+    string kvcc_data_name = createString(vcc_data, this->k);
+    cout << kvcc_data_name << endl;
+    TFIn inFile(kvcc_data_name.c_str());
+    kvcc_array.Load(inFile);
+    cout << kvcc_array.Len() << endl;
+  } catch (TPt<TExcept>) {
+    cout << endl << "***kvcc result does not exist.***" << endl;
+  }
+  for (TIntVIntV::TIter TI = kvcc_array.BegI(); TI < kvcc_array.EndI(); TI++) {
+    PUNGraph G_kvcc = TSnap::GetSubGraph(G, *TI);
+    debug_print("kvcc_nodes: " << G_kvcc->GetNodes() << " kvcc_edges: "
+                               << G_kvcc->GetEdges() << endl);
+  }
 }
 
-vector<double> Master::GroupSelection_single_vertex(TIntV& G_S, TIntV& delta_S,
-    TIntV& delta_S_bar,
+vector<double> Master::GroupSelection_single_vertex(
+    TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
-    cout << "kvcc: ";
-    for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
-        cout << *NI << " ";
-    }
-    cout << endl;
-    delta_S = GetBoundary(G_S, delta_S_bar);
-    TIntV G_sub = delta_S;
-    G_sub.AddVMerged(delta_S_bar);
-    PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
-    // cout << delta_S_bar.Len() << endl;
+  cout << "kvcc: ";
+  for (TIntV::TIter NI = G_S.BegI(); NI < G_S.EndI(); NI++) {
+    cout << *NI << " ";
+  }
+  cout << endl;
+  delta_S = GetBoundary(G_S, delta_S_bar);
+  TIntV G_sub = delta_S;
+  G_sub.AddVMerged(delta_S_bar);
+  PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+  // cout << delta_S_bar.Len() << endl;
 
-    TIntVIntV S;
-    for (int i = 0; i <= k; i++) {
-        S.Add({});
-    }
-    TIntV res = {};
-    TIntV nb_u1 = {}, nb_u2 = {};
+  TIntVIntV S;
+  for (int i = 0; i <= k; i++) {
+    S.Add({});
+  }
+  TIntV res = {};
+  TIntV nb_u1 = {}, nb_u2 = {};
 
-    TIntIntVH in_neighs, out_neighs;
-    for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
-        nb_u1.Clr();
-        nb_u2.Clr();
-        TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
-        for (int i = 0; i < v.GetInDeg(); ++i) {
-            if (delta_S.IsIn(v.GetInNId(i))) // only consider neighbors in
-                // k-vcc
-                nb_u1.AddMerged(v.GetInNId(i));
-            else
-                nb_u2.AddMerged(v.GetInNId(i));
-        }
-        in_neighs.AddDat(*TI, nb_u1);
-        out_neighs.AddDat(*TI, nb_u2);
-        int index = nb_u1.Len();
+  TIntIntVH in_neighs, out_neighs;
+  for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
+    nb_u1.Clr();
+    nb_u2.Clr();
+    TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
+    for (int i = 0; i < v.GetInDeg(); ++i) {
+      if (delta_S.IsIn(v.GetInNId(i)))  // only consider neighbors in
+        // k-vcc
+        nb_u1.AddMerged(v.GetInNId(i));
+      else
+        nb_u2.AddMerged(v.GetInNId(i));
+    }
+    in_neighs.AddDat(*TI, nb_u1);
+    out_neighs.AddDat(*TI, nb_u2);
+    int index = nb_u1.Len();
 
-        // impossible situation
-        if (index >= k)
-            index = k;
-        S[index].AddMerged(*TI);
+    // impossible situation
+    if (index >= k) index = k;
+    S[index].AddMerged(*TI);
+  }
+  int level;
+  for (int i = k; i > 0; i--) {
+    debug_print("S[" << i << "]: ");
+    level = i;
+    for (int j = 0; j < S[i].Len(); j++) {
+      int v = S[i][j];
+      debug_print(v << " ");
     }
-    int level;
-    for (int i = k; i > 0; i--) {
-        debug_print( "S[" << i << "]: ");
-        level = i;
-        for (int j = 0; j < S[i].Len(); j++) {
-            int v = S[i][j];
-            debug_print( v << " ");
-        }
-        debug_print(endl);
-    }
-    for (int i = k; i > 0;) {
-        debug_print( "S[" << i << "]: " << endl);
-        level = i;
-        for (int j = 0; j < S[i].Len(); j++) {
-            int v = S[i][j];
-            debug_print( "Selected Vertex:" <<  v << " " << endl);
-            int need = k - i; // v need how much edges to insert
-            for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
-                if (!in_neighs.GetDat(v).IsIn(*TI)) {
-                    if (acost >= b) {
-                        cout << "acost: " << acost << endl;
-                        cout << "gain: " << Expanded_Vertex.Len() << endl;
-                        return vector<double>{};
-                    }
-                    // insert_edges.Add({*TI, v});
-                    if(Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
-                    Inserted_Edge.insert({*TI, v});
-                    cout << "(insert: " << *TI << " " << v << ") " << endl;
-                    // b--;
+    debug_print(endl);
+  }
+  for (int i = k; i > 0;) {
+    debug_print("S[" << i << "]: " << endl);
+    level = i;
+    for (int j = 0; j < S[i].Len(); j++) {
+      int v = S[i][j];
+      debug_print("Selected Vertex:" << v << " " << endl);
+      int need = k - i;  // v need how much edges to insert
+      for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
+        if (!in_neighs.GetDat(v).IsIn(*TI)) {
+          if (acost >= b) {
+            cout << "acost: " << acost << endl;
+            cout << "gain: " << Expanded_Vertex.Len() << endl;
+            return vector<double>{};
+          }
+          // insert_edges.Add({*TI, v});
+          if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
+          Inserted_Edge.insert({*TI, v});
+          cout << "(insert: " << *TI << " " << v << ") " << endl;
+          // b--;
 
-                    need--;
-                    acost++;
-                    if (need == 0) {
-                        // v have k neighbors in kvcc
-                        Expanded_Vertex.Add(v);
-                        debug_print("expanded: " << v << endl);
-                        // v is expanded, update its neighbors
-                        update_neighbour(S, in_neighs, out_neighs, v,
-                            Expanded_Vertex, level);
-                        break;
-                    }
-                }
-            }
-            // cout<<S[i][j]<<" ";
+          need--;
+          acost++;
+          if (need == 0) {
+            // v have k neighbors in kvcc
+            Expanded_Vertex.Add(v);
+            debug_print("expanded: " << v << endl);
+            // v is expanded, update its neighbors
+            update_neighbour(S, in_neighs, out_neighs, v, Expanded_Vertex,
+                             level);
+            break;
+          }
         }
-        // exist a vertex in S[level] that is not expanded
-        if (level > i) {
-            i = level;
-        }
-        else {
-            i--;
-        }
+      }
+      // cout<<S[i][j]<<" ";
     }
-    cout << "acost: " << acost << endl;
+    // exist a vertex in S[level] that is not expanded
+    if (level > i) {
+      i = level;
+    } else {
+      i--;
+    }
+  }
+  cout << "acost: " << acost << endl;
 }
 
 void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
-    TIntIntVH& out_neighs, int v, TIntV& res,
-    int& level) {
-    // res: new expanded vertices
-    TIntV neigh = out_neighs.GetDat(v);
-    // cout << neigh.Len() << endl;
+                              TIntIntVH& out_neighs, int v, TIntV& res,
+                              int& level) {
+  // res: new expanded vertices
+  TIntV neigh = out_neighs.GetDat(v);
+  // cout << neigh.Len() << endl;
 
-    // cout << level << endl;
-    for (TIntV::TIter NI = neigh.BegI(); NI < neigh.EndI(); NI++) {
-        /*cout << v <<" " << *NI << endl;*/
-        if (in_neighs.GetDat(*NI).Len() != 0) {
-            out_neighs.GetDat(*NI).DelIfIn(v);
-            in_neighs.GetDat(*NI).Add(v);
-        }
+  // cout << level << endl;
+  for (TIntV::TIter NI = neigh.BegI(); NI < neigh.EndI(); NI++) {
+    /*cout << v <<" " << *NI << endl;*/
+    if (in_neighs.GetDat(*NI).Len() != 0) {
+      out_neighs.GetDat(*NI).DelIfIn(v);
+      in_neighs.GetDat(*NI).Add(v);
     }
-    for (TIntV::TIter NI = neigh.BegI(); NI < neigh.EndI(); NI++) {
-        int idx = in_neighs.GetDat(*NI).Len() -1; //上面的循环已经更新过，所以这里为获得idx初始值应该-1
-        /*cout << idx << endl;*/
-        //cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
-        // 回到上一层
-        if (idx + 1 > level) {
-            level = idx + 1;
-        }
-        if (idx < 1)
-            continue;
-        if (idx == k - 1) {
-            S[idx].DelIfIn(*NI);
-            // S[idx + 1].AddMerged(*NI);
-            res.AddMerged(*NI);
-            debug_print("expanded by update: " << *NI << endl);
-            in_neighs.GetDat(*NI) = {};
-            update_neighbour(S, in_neighs, out_neighs, *NI, res, level);
-        }
-        else if (idx < k - 1) {
-            S[idx].DelIfIn(*NI);
-            S[idx + 1].AddUnique(*NI);
-        }
+  }
+  for (TIntV::TIter NI = neigh.BegI(); NI < neigh.EndI(); NI++) {
+    int idx = in_neighs.GetDat(*NI).Len() -
+              1;  //上面的循环已经更新过，所以这里为获得idx初始值应该-1
+    /*cout << idx << endl;*/
+    // cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
+    // 回到上一层
+    if (idx + 1 > level) {
+      level = idx + 1;
     }
+    if (idx < 1) continue;
+    if (idx == k - 1) {
+      S[idx].DelIfIn(*NI);
+      // S[idx + 1].AddMerged(*NI);
+      res.AddMerged(*NI);
+      debug_print("expanded by update: " << *NI << endl);
+      in_neighs.GetDat(*NI) = {};
+      update_neighbour(S, in_neighs, out_neighs, *NI, res, level);
+    } else if (idx < k - 1) {
+      S[idx].DelIfIn(*NI);
+      S[idx + 1].AddUnique(*NI);
+    }
+  }
 }
+
+vector<double> Merge_overlap_vcc(
+    TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+    TIntV& Expanded_Vertex) {}
