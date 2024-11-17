@@ -1,8 +1,12 @@
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include "../../snap-core/Snap.h"
 #include "cliques.h"
@@ -47,8 +51,19 @@ class Master {
   vector<double> Merge_overlap_vcc(
       TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
       TIntV& Expanded_Vertex);
+  vector<double> Merge_adjacent_vcc(
+      TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+      TIntV& Expanded_Vertex);
   TIntV GetBoundary(TIntV G_S, TIntV& delta_S_bar);
   void Load_kvcc(TIntVIntV& kvcc_array, string vcc_data);
   void update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
                         TIntIntVH& out_neighs, int v, TIntV& res, int& level);
+  void sort_by_deg(TIntV& Vcc);
+  vector<int> get_common_neighbors(TIntV& Vcc_1, TIntV& Vcc_2);
+  TIntV get_difference_set(TIntV& Vcc_1, TIntV& Vcc_2);
+  std::pair<int, int> find_max_in_com_neigh(
+      const std::unordered_map<std::pair<int, int>, std::vector<int>,
+                               pair_hash>& com_neigh);
+  std::pair<int, int> find_max_in_gamma(
+      const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
 };
