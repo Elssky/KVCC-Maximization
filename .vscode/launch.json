@@ -8,13 +8,15 @@
             "program": "${workspaceFolder}/main",
             "args": [
                 "-d",
-                "CA-GrQc",
+                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/CA-CondMat",
+                "-c",
+                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/CA-CondMat",
                 "-k",
-                "5",
+                "3",
                 "-b",
                 "10",
                 "-a",
-                "s"
+                "ma"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

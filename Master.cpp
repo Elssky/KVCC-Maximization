@@ -1,6 +1,6 @@
 #include "Master.h"
 
-#define _DEBUG
+// #define _DEBUG
 #ifdef _DEBUG
 #define debug_print(msg) std::cout << msg
 #else
@@ -44,9 +44,9 @@ void Master::Anchoring(string alg, string vcc_data) {
     } else if (alg == string("s")) {
       group = GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar,
                                            Inserted_Edge, Expanded_Vertex);
-    } else if (alg == string("ma")) {
-      group = Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
     } else if (alg == string("mo")) {
+      group = Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+    } else if (alg == string("ma")) {
       group = Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
     } else {
       cout << "wrong alg parameter" << endl;
@@ -627,7 +627,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
     }
   }
 }
-vector<int> Master::get_common_neighbors(TIntV& Vcc_1, TIntV& Vcc_2) {
+vector<int> Master::get_common_set(TIntV& Vcc_1, TIntV& Vcc_2) {
   vector<int> common_neighbors;
 
   auto it1 = Vcc_1.BegI();
@@ -727,7 +727,7 @@ vector<double> Master::Merge_overlap_vcc(
       TIntV* VCC_i = &VCCs[i];
       TIntV* VCC_j = &VCCs[j];
       if (com_neigh.find(make_pair(i, j)) == com_neigh.end()) {
-        com_neigh[make_pair(i, j)] = get_common_neighbors(*VCC_i, *VCC_j);
+        com_neigh[make_pair(i, j)] = get_common_set(*VCC_i, *VCC_j);
       }
     }
     // cout << "com_neigh: " << com_neigh.size() << endl;
@@ -782,24 +782,24 @@ vector<double> Master::Merge_adjacent_vcc(
   std::unordered_map<pair<int, int>, int, pair_hash> gamma;
   cout << "VCCs: " << VCCs.Len() << endl;
   for (int i = 0; i < VCCs.Len(); i++) {
+    TIntV* VCC_i = &VCCs[i];
     for (int j = i + 1; j < VCCs.Len(); j++) {
-      TIntV* VCC_i = &VCCs[i];
       TIntV* VCC_j = &VCCs[j];
+      // skip overlap vcc
+      if (get_common_set(*VCC_i, *VCC_j).size() > 0 ) continue;
       int t = 0, w = 0;
       std::unordered_map<int, bool> flag;
       for (TIntV::TIter uI = VCC_i->BegI(); uI != VCC_i->EndI(); uI++) {
         int u = *uI;
+        if(flag.find(u) != flag.end() && flag[u] == true) continue;
         for (int d = 0; d < G->GetNI(u).GetDeg(); d++) {
           int v = G->GetNI(u).GetNbrNId(d);
+          if(flag.find(v) != flag.end() && flag[v] == true) continue;
           if (VCC_j->IsIn(v)) {
-            if (flag.find(u) == flag.end() || flag[u] == false) {
               t += 1;
               flag[u] = true;
-            }
-            if (flag.find(v) == flag.end() || flag[v] == false) {
               w += 1;
               flag[v] = true;
-            }
           }
         }
       }
@@ -818,13 +818,23 @@ vector<double> Master::Merge_adjacent_vcc(
     TIntV S_1, S_2, S_3, Psi;
 
     GetBoundary(VCCs[i], N_i);
+    // cout << "N_i: " << N_i.Len() <<endl; 
+    // for(TIntV::TIter v = N_i.BegI(); v!=N_i.EndI(); v++) {
+    //   cout <<*v<<" ";
+    // }
+    // cout << endl;
     GetBoundary(VCCs[j], N_j);
+    // cout << "N_j: " << N_j.Len() <<endl; 
+    // for(TIntV::TIter v = N_j.BegI(); v!=N_j.EndI(); v++) {
+    //   cout <<*v<<" ";
+    // }
+    // cout << endl;
 
-    if (gamma_i_j == get_common_neighbors(VCCs[i], N_j).size()) {
+    if (gamma_i_j == get_common_set(VCCs[i], N_j).size()) {
       S_1 = get_difference_set(VCCs[i], N_j);
       Psi = VCCs[j];
       S_2 = get_difference_set(VCCs[j], N_i);
-      vector<int> tmp = get_common_neighbors(VCCs[j], N_i);
+      vector<int> tmp = get_common_set(VCCs[j], N_i);
       for (auto u : tmp) {
         S_3.Add(u);
       }
@@ -832,7 +842,7 @@ vector<double> Master::Merge_adjacent_vcc(
       S_1 = get_difference_set(VCCs[j], N_i);
       Psi = VCCs[i];
       S_2 = get_difference_set(VCCs[i], N_j);
-      vector<int> tmp = get_common_neighbors(VCCs[i], N_j);
+      vector<int> tmp = get_common_set(VCCs[i], N_j);
       for (auto u : tmp) {
         S_3.Add(u);
       }
@@ -844,19 +854,37 @@ vector<double> Master::Merge_adjacent_vcc(
     }
     int blank = k - gamma_i_j;
     sort_by_deg(S_1);
-    sort_by_deg(S_1);
+    sort_by_deg(S_2);
     sort_by_deg(S_3);
-
+    // cout << "S_1: " << S_1.Len() <<endl; 
+    // for(TIntV::TIter v = S_1.BegI(); v!=S_1.EndI(); v++) {
+    //   cout <<*v<<" ";
+    // }
+    // cout << endl;
+    // cout << "S_2: " << S_2.Len() <<endl; 
+    // for(TIntV::TIter v = S_2.BegI(); v!=S_2.EndI(); v++) {
+    //   cout <<*v<<" ";
+    // }
+    // cout << endl;
+    // cout << "S_3: " << S_3.Len() <<endl;
+    // for(TIntV::TIter v = S_3.BegI(); v!=S_3.EndI(); v++) {
+    //   cout <<*v<<" ";
+    // }
+    // cout << endl; 
     int s2_idx = 0, s3_idx = 0;
+    if(blank == 0) {
+      cout << "gamma_i_j >= k" <<endl;
+      gamma[key]=-1;
+    }
     for (int s1_idx = 0; s1_idx < S_1.Len() && blank > 0; s1_idx++) {
       int v = S_1[s1_idx];
       int u;
       if (!S_2.Empty()) {
         u = S_2[s2_idx++];
-        S_2.DelIfIn(u);
+        // S_2.DelIfIn(u);
       } else {
         u = S_3[s3_idx++];
-        S_3.DelIfIn(u);
+        // S_3.DelIfIn(u);
       }
       if (Inserted_Edge.find({v, u}) != Inserted_Edge.end() &&
           Inserted_Edge.find({u, v}) != Inserted_Edge.end())
@@ -866,8 +894,8 @@ vector<double> Master::Merge_adjacent_vcc(
       acost += 1;
 
       // S_2.DelIfIn(u);
-      if (blank == 0) {
-        gamma[key] = 0;
+      if (blank <= 0) {
+        gamma[key]=-1;
         break;
       }
     }

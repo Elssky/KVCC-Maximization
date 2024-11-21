@@ -59,7 +59,7 @@ class Master {
   void update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
                         TIntIntVH& out_neighs, int v, TIntV& res, int& level);
   void sort_by_deg(TIntV& Vcc);
-  vector<int> get_common_neighbors(TIntV& Vcc_1, TIntV& Vcc_2);
+  vector<int> get_common_set(TIntV& Vcc_1, TIntV& Vcc_2);
   TIntV get_difference_set(TIntV& Vcc_1, TIntV& Vcc_2);
   std::pair<int, int> find_max_in_com_neigh(
       const std::unordered_map<std::pair<int, int>, std::vector<int>,
