@@ -1,6 +1,6 @@
 #include "Master.h"
 
-#define _DEBUG
+// #define _DEBUG
 #ifdef _DEBUG
 #define debug_print(msg) std::cout << msg
 #else
@@ -73,7 +73,7 @@ void Master::Anchoring(string alg, string vcc_data) {
 /* together 和 multi的区别在于同时考虑所有不同S_i层级的clique，
 而multi是i从大到小考虑
 */
-vector<double> Master::GroupSelection_together(
+void Master::GroupSelection_together(
     TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
@@ -218,7 +218,7 @@ vector<double> Master::GroupSelection_together(
             }
             if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
             Inserted_Edge.insert({*TI, v});
-            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            debug_print("(insert: " << *TI << " " << v << ") " << endl);
             need--;
             acost++;
           }
@@ -236,7 +236,7 @@ vector<double> Master::GroupSelection_together(
             // insert_edges.Add({*TI, v});
             if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
             Inserted_Edge.insert({*TI, v});
-            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            debug_print("(insert: " << *TI << " " << v << ") " << endl);
             // b--;
             need--;
             acost++;
@@ -257,18 +257,17 @@ vector<double> Master::GroupSelection_together(
       }
     }
     if (flag == 1) {
-      Expanded_Vertex.Merge();
-      return vector<double>{};
-      // cout << "acost: " << acost << endl;
-      // cout << "gain: " << Expanded_Vertex.Len() << endl;
+      G_S.AddVMerged(Expanded_Vertex);
+      return;
     }
-
     cliques.Clr();
   }
+  G_S.AddVMerged(Expanded_Vertex);
+  return;
   // how to select edge to insert
 }
 
-vector<double> Master::GroupSelection_multi_vertex(
+void Master::GroupSelection_multi_vertex(
     TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
@@ -402,7 +401,7 @@ vector<double> Master::GroupSelection_multi_vertex(
             if (need == 0) {
               break;
             }
-            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            debug_print("(insert: " << *TI << " " << v << ") " << endl);
             need--;
             acost++;
 
@@ -421,7 +420,7 @@ vector<double> Master::GroupSelection_multi_vertex(
             // insert_edges.Add({*TI, v});
             if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
             Inserted_Edge.insert({*TI, v});
-            cout << "(insert: " << *TI << " " << v << ") " << endl;
+            debug_print("(insert: " << *TI << " " << v << ") " << endl);
             // b--;
             need--;
             acost++;
@@ -442,15 +441,15 @@ vector<double> Master::GroupSelection_multi_vertex(
     }
     if (flag == 1) {
       Expanded_Vertex.Merge();
-      cout << "acost: " << acost << endl;
-      cout << "gain: " << Expanded_Vertex.Len() << endl;
+      // cout << "acost: " << acost << endl;
+      // cout << "gain: " << Expanded_Vertex.Len() << endl;
       G_S.AddVMerged(Expanded_Vertex);
-      return vector<double>{};
+      return;
     }
   }
   cliques.Clr();
   G_S.AddVMerged(Expanded_Vertex);
-  return vector<double>{};
+  return;
   // how to select edge to insert
 }
 
@@ -497,7 +496,7 @@ void Master::Load_kvcc(TIntVIntV& kvcc_array, string vcc_data) {
   }
 }
 
-vector<double> Master::GroupSelection_single_vertex(
+void Master::GroupSelection_single_vertex(
     TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
@@ -559,14 +558,14 @@ vector<double> Master::GroupSelection_single_vertex(
       for (TIntV::TIter TI = G_S.BegI(); TI < G_S.EndI(); TI++) {
         if (!in_neighs.GetDat(v).IsIn(*TI)) {
           if (acost >= b) {
-            cout << "acost: " << acost << endl;
-            cout << "gain: " << Expanded_Vertex.Len() << endl;
-            return vector<double>{};
+            // cout << "acost: " << acost << endl;
+            // cout << "gain: " << Expanded_Vertex.Len() << endl;
+            return;
           }
           // insert_edges.Add({*TI, v});
           if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
           Inserted_Edge.insert({*TI, v});
-          cout << "(insert: " << *TI << " " << v << ") " << endl;
+           debug_print( "(insert: " << *TI << " " << v << ") " << endl);
           // b--;
 
           need--;
@@ -591,7 +590,9 @@ vector<double> Master::GroupSelection_single_vertex(
       i--;
     }
   }
-  cout << "acost: " << acost << endl;
+  // cout << "acost: " << acost << endl;
+  G_S.AddVMerged(Expanded_Vertex);
+  return;
 }
 
 void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
@@ -722,7 +723,7 @@ void Master::sort_by_deg(TIntV& Vcc) {
   });
 }
 
-vector<double> Master::Merge_overlap_vcc(
+void Master::Merge_overlap_vcc(
     TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
   std::unordered_map<pair<int, int>, vector<int>, pair_hash> com_neigh;
@@ -778,10 +779,10 @@ vector<double> Master::Merge_overlap_vcc(
     debug_print(edge.first << " " << edge.second << endl);
   }
   // debug_print("Expanded_Vertex: " << Expanded_Vertex.Len() << endl);
-  return vector<double>{};
+  return;
 }
 
-vector<double> Master::Merge_adjacent_vcc(
+void Master::Merge_adjacent_vcc(
     TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
     TIntV& Expanded_Vertex) {
   std::unordered_map<pair<int, int>, int, pair_hash> gamma;
@@ -911,5 +912,5 @@ vector<double> Master::Merge_adjacent_vcc(
     debug_print(edge.first << " " << edge.second << endl);
   }
   debug_print("Expanded_Vertex: " << Expanded_Vertex.Len() << endl);
-  return vector<double>{};
+  return;
 }
