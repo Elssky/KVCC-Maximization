@@ -1,6 +1,6 @@
 #include "Master.h"
 
-// #define _DEBUG
+#define _DEBUG
 #ifdef _DEBUG
 #define debug_print(msg) std::cout << msg
 #else
@@ -32,22 +32,22 @@ void Master::Anchoring(string alg, string vcc_data) {
     double node_score = 0;
 
     // Compute by Multiple Vertex Anchoring
-    vector<double> group;
+    // vector<double> group;
 
     int insEdge_size = Inserted_Edge.size();
     if (alg == string("t")) {
-      group = GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+      GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
                                       Expanded_Vertex);
     } else if (alg == string("m")) {
-      group = GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar,
+      GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar,
                                           Inserted_Edge, Expanded_Vertex);
     } else if (alg == string("s")) {
-      group = GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar,
+      GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar,
                                            Inserted_Edge, Expanded_Vertex);
     } else if (alg == string("mo")) {
-      group = Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+      Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
     } else if (alg == string("ma")) {
-      group = Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+      Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
     } else {
       cout << "wrong alg parameter" << endl;
       return;
@@ -57,6 +57,8 @@ void Master::Anchoring(string alg, string vcc_data) {
       break;
     }
   }
+  cout << "acost: " << acost << endl;
+  cout << "gain: " << Expanded_Vertex.Len() << endl;
   cout << "Expanded_Vertex:";
   for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
        NI++) {
@@ -256,9 +258,9 @@ vector<double> Master::GroupSelection_together(
     }
     if (flag == 1) {
       Expanded_Vertex.Merge();
-      cout << "acost: " << acost << endl;
-      cout << "gain: " << Expanded_Vertex.Len() << endl;
       return vector<double>{};
+      // cout << "acost: " << acost << endl;
+      // cout << "gain: " << Expanded_Vertex.Len() << endl;
     }
 
     cliques.Clr();
@@ -442,10 +444,13 @@ vector<double> Master::GroupSelection_multi_vertex(
       Expanded_Vertex.Merge();
       cout << "acost: " << acost << endl;
       cout << "gain: " << Expanded_Vertex.Len() << endl;
+      G_S.AddVMerged(Expanded_Vertex);
       return vector<double>{};
     }
   }
   cliques.Clr();
+  G_S.AddVMerged(Expanded_Vertex);
+  return vector<double>{};
   // how to select edge to insert
 }
 
