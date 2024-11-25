@@ -1,6 +1,6 @@
 #include "Master.h"
 
-// #define _DEBUG
+#define _DEBUG
 #ifdef _DEBUG
 #define debug_print(msg) std::cout << msg
 #else
@@ -117,8 +117,7 @@ void Master::GroupSelection_together(
     out_neighs.AddDat(*TI, nb_u2);
     int index = nb_u1.Len();
 
-    // impossible situation
-    // if (index >= k) index = k;
+    if (index >= k) index = k;
     S[index].AddMerged(*TI);
   }
 
@@ -491,8 +490,8 @@ void Master::Load_kvcc(TIntVIntV& kvcc_array, string vcc_data) {
   }
   for (TIntVIntV::TIter TI = kvcc_array.BegI(); TI < kvcc_array.EndI(); TI++) {
     PUNGraph G_kvcc = TSnap::GetSubGraph(G, *TI);
-    debug_print("kvcc_nodes: " << G_kvcc->GetNodes() << " kvcc_edges: "
-                               << G_kvcc->GetEdges() << endl);
+    // debug_print("kvcc_nodes: " << G_kvcc->GetNodes() << " kvcc_edges: "
+    //                            << G_kvcc->GetEdges() << endl);
   }
 }
 
@@ -616,6 +615,8 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
     /*cout << idx << endl;*/
     // cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
     // 回到上一层
+    //避免越界
+    idx = min(k-1, idx);
     if (idx + 1 > level) {
       level = idx + 1;
     }
