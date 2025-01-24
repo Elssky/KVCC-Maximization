@@ -8,15 +8,15 @@
             "program": "${workspaceFolder}/main",
             "args": [
                 "-d",
-                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/CA-CondMat",
+                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/ca-HepPh",
                 "-c",
-                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/CA-CondMat",
+                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/ca-HepPh",
                 "-k",
                 "3",
                 "-b",
-                "10",
+                "100",
                 "-a",
-                "ma"
+                "t"cl
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

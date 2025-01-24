@@ -1,3 +1,4 @@
+#ifndef MASTER_H
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -66,4 +67,9 @@ class Master {
                                pair_hash>& com_neigh);
   std::pair<int, int> find_max_in_gamma(
       const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
+
+  void CalConnectKVcc(TIntVIntV& VCCs,
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+                      TIntV& Expanded_Vertex);
 };
+#endif

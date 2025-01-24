@@ -37,13 +37,13 @@ void Master::Anchoring(string alg, string vcc_data) {
     int insEdge_size = Inserted_Edge.size();
     if (alg == string("t")) {
       GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-                                      Expanded_Vertex);
+                              Expanded_Vertex);
     } else if (alg == string("m")) {
-      GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar,
-                                          Inserted_Edge, Expanded_Vertex);
+      GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+                                  Expanded_Vertex);
     } else if (alg == string("s")) {
-      GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar,
-                                           Inserted_Edge, Expanded_Vertex);
+      GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+                                   Expanded_Vertex);
     } else if (alg == string("mo")) {
       Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
     } else if (alg == string("ma")) {
@@ -564,7 +564,7 @@ void Master::GroupSelection_single_vertex(
           // insert_edges.Add({*TI, v});
           if (Inserted_Edge.find({*TI, v}) != Inserted_Edge.end()) continue;
           Inserted_Edge.insert({*TI, v});
-           debug_print( "(insert: " << *TI << " " << v << ") " << endl);
+          debug_print("(insert: " << *TI << " " << v << ") " << endl);
           // b--;
 
           need--;
@@ -616,7 +616,7 @@ void Master::update_neighbour(TIntVIntV& S, TIntIntVH& in_neighs,
     // cout << "updated_idx: " << idx + 1 << " v:" << *NI << endl;
     // 回到上一层
     //避免越界
-    idx = min(k-1, idx);
+    idx = min(k - 1, idx);
     if (idx + 1 > level) {
       level = idx + 1;
     }
@@ -793,20 +793,20 @@ void Master::Merge_adjacent_vcc(
     for (int j = i + 1; j < VCCs.Len(); j++) {
       TIntV* VCC_j = &VCCs[j];
       // skip overlap vcc
-      if (get_common_set(*VCC_i, *VCC_j).size() > 0 ) continue;
+      if (get_common_set(*VCC_i, *VCC_j).size() > 0) continue;
       int t = 0, w = 0;
       std::unordered_map<int, bool> flag;
       for (TIntV::TIter uI = VCC_i->BegI(); uI != VCC_i->EndI(); uI++) {
         int u = *uI;
-        if(flag.find(u) != flag.end() && flag[u] == true) continue;
+        if (flag.find(u) != flag.end() && flag[u] == true) continue;
         for (int d = 0; d < G->GetNI(u).GetDeg(); d++) {
           int v = G->GetNI(u).GetNbrNId(d);
-          if(flag.find(v) != flag.end() && flag[v] == true) continue;
+          if (flag.find(v) != flag.end() && flag[v] == true) continue;
           if (VCC_j->IsIn(v)) {
-              t += 1;
-              flag[u] = true;
-              w += 1;
-              flag[v] = true;
+            t += 1;
+            flag[u] = true;
+            w += 1;
+            flag[v] = true;
           }
         }
       }
@@ -825,13 +825,13 @@ void Master::Merge_adjacent_vcc(
     TIntV S_1, S_2, S_3, Psi;
 
     GetBoundary(VCCs[i], N_i);
-    // cout << "N_i: " << N_i.Len() <<endl; 
+    // cout << "N_i: " << N_i.Len() <<endl;
     // for(TIntV::TIter v = N_i.BegI(); v!=N_i.EndI(); v++) {
     //   cout <<*v<<" ";
     // }
     // cout << endl;
     GetBoundary(VCCs[j], N_j);
-    // cout << "N_j: " << N_j.Len() <<endl; 
+    // cout << "N_j: " << N_j.Len() <<endl;
     // for(TIntV::TIter v = N_j.BegI(); v!=N_j.EndI(); v++) {
     //   cout <<*v<<" ";
     // }
@@ -863,12 +863,12 @@ void Master::Merge_adjacent_vcc(
     sort_by_deg(S_1);
     sort_by_deg(S_2);
     sort_by_deg(S_3);
-    // cout << "S_1: " << S_1.Len() <<endl; 
+    // cout << "S_1: " << S_1.Len() <<endl;
     // for(TIntV::TIter v = S_1.BegI(); v!=S_1.EndI(); v++) {
     //   cout <<*v<<" ";
     // }
     // cout << endl;
-    // cout << "S_2: " << S_2.Len() <<endl; 
+    // cout << "S_2: " << S_2.Len() <<endl;
     // for(TIntV::TIter v = S_2.BegI(); v!=S_2.EndI(); v++) {
     //   cout <<*v<<" ";
     // }
@@ -877,11 +877,11 @@ void Master::Merge_adjacent_vcc(
     // for(TIntV::TIter v = S_3.BegI(); v!=S_3.EndI(); v++) {
     //   cout <<*v<<" ";
     // }
-    // cout << endl; 
+    // cout << endl;
     int s2_idx = 0, s3_idx = 0;
-    if(blank == 0) {
-      cout << "gamma_i_j >= k" <<endl;
-      gamma[key]=-1;
+    if (blank == 0) {
+      cout << "gamma_i_j >= k" << endl;
+      gamma[key] = -1;
     }
     for (int s1_idx = 0; s1_idx < S_1.Len() && blank > 0; s1_idx++) {
       int v = S_1[s1_idx];
@@ -902,7 +902,7 @@ void Master::Merge_adjacent_vcc(
 
       // S_2.DelIfIn(u);
       if (blank <= 0) {
-        gamma[key]=-1;
+        gamma[key] = -1;
         break;
       }
     }
@@ -914,4 +914,34 @@ void Master::Merge_adjacent_vcc(
   }
   debug_print("Expanded_Vertex: " << Expanded_Vertex.Len() << endl);
   return;
+}
+
+void Master::CalConnectKVcc(
+    TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+    TIntV& Expanded_Vertex) {
+
+  std::unordered_map<pair<int, int>, int, pair_hash> gamma;
+  cout << "VCCs: " << VCCs.Len() << endl;
+  //TODO: sort VCCs by size
+  VCCs.Sort();
+  int cost = k, gain = 0;
+
+  for (int i = 0; i < VCCs.Len(); i++) {
+    TIntV* VCC_i = &VCCs[i];
+    for (int j = i + 1; j < VCCs.Len(); j++) {
+      TIntV* VCC_j = &VCCs[j];
+
+      p_ij = get_common_set(*VCC_i, *VCC_j).size();
+      cost = k - p_ij;;
+
+      GetBoundary(VCCs[i], N_i);
+      GetBoundary(VCCs[j], N_j);
+      S_L = get_common_set(get_difference_set(VCCs[i], VCCs[j]), N_j);
+      S_R = get_common_set(get_difference_set(VCCs[j], VCCs[i]), N_i);
+      
+
+
+    }
+  }
+
 }
