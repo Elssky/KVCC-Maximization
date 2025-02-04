@@ -11,6 +11,8 @@
 #include <vector>
 #include "../../snap-core/Snap.h"
 #include "cliques.h"
+#include "maxMatch.h"
+#include "utility.h"
 using namespace std;
 
 typedef TVec<TInt> TIntV;
@@ -25,6 +27,13 @@ struct pair_hash {
   template <class T1, class T2>
   std::size_t operator()(const std::pair<T1, T2>& pair) const {
     return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+  }
+};
+
+struct Compare {
+  bool operator()(const std::pair<std::pair<int, int>, double>& a,
+                  const std::pair<std::pair<int, int>, double>& b) {
+    return a.second < b.second;  // 按照 double 值从大到小排序
   }
 };
 
@@ -68,8 +77,7 @@ class Master {
   std::pair<int, int> find_max_in_gamma(
       const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
 
-  void CalConnectKVcc(TIntVIntV& VCCs,
-                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
-                      TIntV& Expanded_Vertex);
+  void CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
+                      vector<vector<int>>& T, vector<int>& R);
 };
 #endif

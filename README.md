@@ -2,7 +2,7 @@
 ## Usage
 ```shell
 # for single vertex maximization
-./main -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/CA-GrQc -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/CA-GrQc -k 5 -b 10 -a s
+./main -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/web-arabic-2005 -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/web-arabic-2005 -k 5 -b 50 -a s
 
 # for multi vertex maximization
 ./main -d CA-GrQc -k 5 -b 10 -a m

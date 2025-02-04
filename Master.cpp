@@ -15,6 +15,7 @@ Master::Master(PUNGraph G, int k, int b) {
   this->k = k;
 }
 
+
 void Master::Anchoring(string alg, string vcc_data) {
   double t_begin = (double)clock();
   int round = 0;
@@ -24,51 +25,91 @@ void Master::Anchoring(string alg, string vcc_data) {
   TIntV Expanded_Vertex;
   Load_kvcc(kvcc_array, vcc_data);
   // select kvcc to expand
-  kvcc = kvcc_array[1];
-  unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-  while (acost < b) {
-    cout << " -- Anchoring round: " << round++ << endl;
-    double vertex_begin = (double)clock();
-    double node_score = 0;
+  // kvcc = kvcc_array[1];
+  // unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+  vector<int> I, J, R;
+  vector<vector<int>> T;
 
-    // Compute by Multiple Vertex Anchoring
-    // vector<double> group;
+  CalConnectKVcc(kvcc_array, I, J, T, R);
 
-    int insEdge_size = Inserted_Edge.size();
-    if (alg == string("t")) {
-      GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-                              Expanded_Vertex);
-    } else if (alg == string("m")) {
-      GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-                                  Expanded_Vertex);
-    } else if (alg == string("s")) {
-      GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-                                   Expanded_Vertex);
-    } else if (alg == string("mo")) {
-      Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
-    } else if (alg == string("ma")) {
-      Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
-    } else {
-      cout << "wrong alg parameter" << endl;
-      return;
-    }
-    // if no edge can be inserted, stop
-    if (insEdge_size == Inserted_Edge.size()) {
-      break;
-    }
-  }
-  cout << "acost: " << acost << endl;
-  cout << "gain: " << Expanded_Vertex.Len() << endl;
-  cout << "Expanded_Vertex:";
-  for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
-       NI++) {
-    cout << *NI << " ";
-  }
-  cout << endl;
-  double t_end = (double)clock();
-  cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
-       << endl;
+  // while (acost < b) {
+  //   cout << " -- Anchoring round: " << round++ << endl;
+  //   double vertex_begin = (double)clock();
+  //   double node_score = 0;
+
+  //   // Compute by Multiple Vertex Anchoring
+  //   // vector<double> group;
+
+  // }
+
+  
+  // cout << "acost: " << acost << endl;
+  // cout << "gain: " << Expanded_Vertex.Len() << endl;
+  // cout << "Expanded_Vertex:";
+  // for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
+  //      NI++) {
+  //   cout << *NI << " ";
+  // }
+  // cout << endl;
+  // double t_end = (double)clock();
+  // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
+  //      << endl;
 }
+
+// void Master::Anchoring(string alg, string vcc_data) {
+//   double t_begin = (double)clock();
+//   int round = 0;
+//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+//   TIntVIntV kvcc_array;
+//   TIntV kvcc, delta_S, delta_S_bar;
+//   TIntV Expanded_Vertex;
+//   Load_kvcc(kvcc_array, vcc_data);
+//   // select kvcc to expand
+//   kvcc = kvcc_array[1];
+//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+//   while (acost < b) {
+//     cout << " -- Anchoring round: " << round++ << endl;
+//     double vertex_begin = (double)clock();
+//     double node_score = 0;
+
+//     // Compute by Multiple Vertex Anchoring
+//     // vector<double> group;
+
+//     int insEdge_size = Inserted_Edge.size();
+//     if (alg == string("t")) {
+//       GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+//                               Expanded_Vertex);
+//     } else if (alg == string("m")) {
+//       GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+//                                   Expanded_Vertex);
+//     } else if (alg == string("s")) {
+//       GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
+//                                    Expanded_Vertex);
+//     } else if (alg == string("mo")) {
+//       Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+//     } else if (alg == string("ma")) {
+//       Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
+//     } else {
+//       cout << "wrong alg parameter" << endl;
+//       return;
+//     }
+//     // if no edge can be inserted, stop
+//     if (insEdge_size == Inserted_Edge.size()) {
+//       break;
+//     }
+//   }
+//   cout << "acost: " << acost << endl;
+//   cout << "gain: " << Expanded_Vertex.Len() << endl;
+//   cout << "Expanded_Vertex:";
+//   for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
+//        NI++) {
+//     cout << *NI << " ";
+//   }
+//   cout << endl;
+//   double t_end = (double)clock();
+//   cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
+//        << endl;
+// }
 
 /* together 和 multi的区别在于同时考虑所有不同S_i层级的clique，
 而multi是i从大到小考虑
@@ -452,6 +493,7 @@ void Master::GroupSelection_multi_vertex(
   // how to select edge to insert
 }
 
+// delta_S_bar 是 S 的邻居集合，但不包括 S 中的顶点
 TIntV Master::GetBoundary(TIntV G_S, TIntV& delta_S_bar) {
   TIntV delta_S;
   delta_S.Clr();
@@ -916,32 +958,71 @@ void Master::Merge_adjacent_vcc(
   return;
 }
 
-void Master::CalConnectKVcc(
-    TIntVIntV& VCCs, unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
-    TIntV& Expanded_Vertex) {
-
-  std::unordered_map<pair<int, int>, int, pair_hash> gamma;
+void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
+                            vector<vector<int>>& T, vector<int>& R) {
+  std::priority_queue<std::pair<std::pair<int, int>, double>,
+                      std::vector<std::pair<std::pair<int, int>, double>>,
+                      Compare>
+      r;
+  std::unordered_map<pair<int, int>, vector<int>, pair_hash> t;
   cout << "VCCs: " << VCCs.Len() << endl;
-  //TODO: sort VCCs by size
+  // TODO: sort VCCs by size
   VCCs.Sort();
-  int cost = k, gain = 0;
 
   for (int i = 0; i < VCCs.Len(); i++) {
     TIntV* VCC_i = &VCCs[i];
     for (int j = i + 1; j < VCCs.Len(); j++) {
       TIntV* VCC_j = &VCCs[j];
 
-      p_ij = get_common_set(*VCC_i, *VCC_j).size();
-      cost = k - p_ij;;
+      int cost = k, gain = 0;
+      int p_ij = get_common_set(*VCC_i, *VCC_j).size();
+      cost -= p_ij;
 
+      TIntV N_i, N_j;
       GetBoundary(VCCs[i], N_i);
       GetBoundary(VCCs[j], N_j);
-      S_L = get_common_set(get_difference_set(VCCs[i], VCCs[j]), N_j);
-      S_R = get_common_set(get_difference_set(VCCs[j], VCCs[i]), N_i);
-      
+      TIntV diff_ij = get_difference_set(VCCs[i], VCCs[j]);
+      TIntV diff_ji = get_difference_set(VCCs[j], VCCs[i]);
+      vector<int> S_L = get_common_set(diff_ij, N_j);
+      vector<int> S_R = get_common_set(diff_ji, N_i);
 
+      vector<int> M;
+      std::vector<std::pair<int, int>> matches;
+      // cout << "i: " << i << ", j: " << j << endl;
+      PUNGraph G_LR = RemoveInternalEdges(G, S_L, S_R);
+      if(G_LR->GetEdges() == 0) continue;
+      if (S_L.size() != 0) {
+        int MaxMatch = HopcroftKarp(G_LR, S_L, S_R, matches);
+        for (auto match : matches) {
+          t[make_pair(i, j)].push_back(match.first);
+          t[make_pair(j, i)].push_back(match.second);
+        }
+        cost -= MaxMatch;
+      }
 
+      if (cost < k) {
+        gain = 2 * VCCs[i].Len() * VCCs [j].Len() + p_ij * VCCs[j].Len();
+        r.push({make_pair(i, j), (double)gain / cost});
+      }
     }
   }
 
+  bool flag = true;
+  while (flag && !r.empty()) {
+    auto top = r.top();
+    r.pop();
+    int i_star = top.first.first, j_star = top.first.second,
+        r_ij_star = top.second;
+    std::cout << "Key: (" << i_star << ", " << j_star
+              << "), Value: " << r_ij_star << std::endl;
+    if (r_ij_star == 0) {
+      flag = false;
+      break;
+    }
+    I.push_back(i_star);
+    T.push_back(t[make_pair(i_star, j_star)]);
+    T.push_back(t[make_pair(j_star, i_star)]);
+    J.push_back(j_star);
+    R.push_back(r_ij_star);
+  }
 }

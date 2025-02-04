@@ -16,7 +16,7 @@
                 "-b",
                 "100",
                 "-a",
-                "t"cl
+                "t"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
