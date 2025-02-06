@@ -15,7 +15,6 @@ Master::Master(PUNGraph G, int k, int b) {
   this->k = k;
 }
 
-
 void Master::Anchoring(string alg, string vcc_data) {
   double t_begin = (double)clock();
   int round = 0;
@@ -27,10 +26,29 @@ void Master::Anchoring(string alg, string vcc_data) {
   // select kvcc to expand
   // kvcc = kvcc_array[1];
   // unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-  vector<int> I, J, R;
-  vector<vector<int>> T;
+  vector<int> Io, Ie, J;
+  vector<double> Ro, Re;
+  vector<vector<int>> T, MC;
+  double r;
+  unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
 
-  CalConnectKVcc(kvcc_array, I, J, T, R);
+  // CalConnectKVcc(kvcc_array, Io, J, T, Ro);
+  CalMulVerices(kvcc_array, Ie, MC, Re);
+
+  // double ra = *Ro.begin();
+  double rb = *Re.begin();
+  ExpSinVertices(kvcc_array, r, Inserted_Edge);
+
+  // while (acost < b) {
+  //   if (!Ro.empty() && !Re.empty()) {
+  //     int ra = *Ro.begin();
+  //     int rb = *Re.begin();
+  //     ExpSinVertices(kvcc_array, r, Inserted_Edge);
+  //     // std::cout << "ra: " << ra << ", rb: " << rb << std::endl;
+  //   } else {
+  //     break;
+  //   }
+  // }
 
   // while (acost < b) {
   //   cout << " -- Anchoring round: " << round++ << endl;
@@ -42,7 +60,6 @@ void Master::Anchoring(string alg, string vcc_data) {
 
   // }
 
-  
   // cout << "acost: " << acost << endl;
   // cout << "gain: " << Expanded_Vertex.Len() << endl;
   // cout << "Expanded_Vertex:";
@@ -52,7 +69,8 @@ void Master::Anchoring(string alg, string vcc_data) {
   // }
   // cout << endl;
   // double t_end = (double)clock();
-  // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
+  // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC <<
+  // "s."
   //      << endl;
 }
 
@@ -107,7 +125,8 @@ void Master::Anchoring(string alg, string vcc_data) {
 //   }
 //   cout << endl;
 //   double t_end = (double)clock();
-//   cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC << "s."
+//   cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC <<
+//   "s."
 //        << endl;
 // }
 
@@ -167,17 +186,6 @@ void Master::GroupSelection_together(
   TIntV S_total;
   TIntVIntV cliques;
   TIntVTIntVH cliques_neighs_union;
-
-  // use priority queue to select the clique with max size + level (|c| + i)
-  auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
-                 const std::pair<std::vector<int>, std::pair<int, int>>& b) {
-    const auto& a_first = a.second.first;
-    const auto& b_first = b.second.first;
-    const auto& a_second = a.second.second;
-    const auto& b_second = b.second.second;
-
-    return (a_first == b_first) ? (a_second > b_second) : (a_first < b_first);
-  };
 
   priority_queue<pair<vector<int>, pair<int, int>>,
                  vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
@@ -360,17 +368,6 @@ void Master::GroupSelection_multi_vertex(
   TIntV S_total;
   TIntVIntV cliques;
   TIntVTIntVH cliques_neighs_union;
-
-  // use priority queue to select the clique with max size + level (|c| + i)
-  auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
-                 const std::pair<std::vector<int>, std::pair<int, int>>& b) {
-    const auto& a_first = a.second.first;
-    const auto& b_first = b.second.first;
-    const auto& a_second = a.second.second;
-    const auto& b_second = b.second.second;
-
-    return (a_first == b_first) ? (a_second > b_second) : (a_first < b_first);
-  };
 
   priority_queue<pair<vector<int>, pair<int, int>>,
                  vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
@@ -959,7 +956,7 @@ void Master::Merge_adjacent_vcc(
 }
 
 void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
-                            vector<vector<int>>& T, vector<int>& R) {
+                            vector<vector<int>>& T, vector<double>& R) {
   std::priority_queue<std::pair<std::pair<int, int>, double>,
                       std::vector<std::pair<std::pair<int, int>, double>>,
                       Compare>
@@ -990,7 +987,7 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
       std::vector<std::pair<int, int>> matches;
       // cout << "i: " << i << ", j: " << j << endl;
       PUNGraph G_LR = RemoveInternalEdges(G, S_L, S_R);
-      if(G_LR->GetEdges() == 0) continue;
+      if (G_LR->GetEdges() == 0) continue;
       if (S_L.size() != 0) {
         int MaxMatch = HopcroftKarp(G_LR, S_L, S_R, matches);
         for (auto match : matches) {
@@ -1001,7 +998,7 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
       }
 
       if (cost < k) {
-        gain = 2 * VCCs[i].Len() * VCCs [j].Len() + p_ij * VCCs[j].Len();
+        gain = 2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * VCCs[j].Len();
         r.push({make_pair(i, j), (double)gain / cost});
       }
     }
@@ -1024,5 +1021,211 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
     T.push_back(t[make_pair(j_star, i_star)]);
     J.push_back(j_star);
     R.push_back(r_ij_star);
+  }
+}
+
+void Master::CalMulVerices(TIntVIntV& VCCs, vector<int>& I,
+                           vector<vector<int>>& MC, vector<double>& R) {
+  std::priority_queue<std::pair<std::pair<int, int>, double>,
+                      std::vector<std::pair<std::pair<int, int>, double>>,
+                      Compare>
+      r;
+
+  vector<vector<vector<int>>>
+      allCliques;  // 新增数组，用于保存每个 VCC_i 计算得到的 cliques
+  for (int i = 0; i < VCCs.Len(); i++) {
+    vector<vector<int>>
+        currentCliques;  // 用于存储当前计算得到的所有 cliques 转换后的结果
+
+    TIntV VCC_i = VCCs[i];
+    // calcuate one-hop neighbor of Graph G as candidate set
+    TIntV delta_S, delta_S_bar;
+    delta_S = GetBoundary(VCC_i, delta_S_bar);
+    TIntV G_sub = delta_S;
+    G_sub.AddVMerged(delta_S_bar);
+    PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+
+    // calculate the edge num from vertex in delta_S_bar to k-vcc,
+    // divide it into S_(k), S_(k-1), S_(k-2), ...
+    TIntVIntV S;
+    for (int i = 0; i <= k; i++) {
+      S.Add({});
+    }
+    TIntV res = {};
+    TIntV nb_u1 = {}, nb_u2 = {};
+
+    // in_neighs stores the neighbors of each candidate node belonging to k-vcc
+    // out_neighs stores the neighbors of each candidate node belonging to
+    // delta_S_bar
+    TIntIntVH in_neighs, out_neighs;
+    for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
+      nb_u1.Clr();
+      nb_u2.Clr();
+      TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
+      for (int i = 0; i < v.GetInDeg(); ++i) {
+        if (delta_S.IsIn(v.GetInNId(i)))  // only consider neighbors in
+          // k-vcc
+          nb_u1.AddMerged(v.GetInNId(i));
+        else
+          nb_u2.AddMerged(v.GetInNId(i));
+      }
+      in_neighs.AddDat(*TI, nb_u1);
+      out_neighs.AddDat(*TI, nb_u2);
+      int index = nb_u1.Len();
+
+      // impossible situation
+      // if (index >= k) index = k;
+      S[index].AddMerged(*TI);
+    }
+
+    // calculate maximal cliques MC in each S
+    int num = 0;
+    TIntV S_total;
+    TIntVIntV cliques;
+    TIntVTIntVH cliques_neighs_union;
+
+    // priority_queue<pair<vector<int>, pair<int, int>>,
+    //                vector<pair<vector<int>, pair<int, int>>>, decltype(comp)>
+    //     clique_in_neighs(comp);
+
+    int level = 0;
+    int clq_idx = 0;
+    for (int layer = k - 1; layer > 0; layer--) {
+      // debug_print("S[" << i << "]: ");
+      TIntV S_layer = S[layer];
+      TIntV neigh_Union;
+      TIntV S_layer_temp;
+
+      S_total.Clr();
+      S_total.AddVMerged(S[layer]);
+      // to be considered how to deal with?
+      // if (S_total.Len() < k - i + 1) continue;
+      PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
+      // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
+      // to be considered how to deal with clique size smaller than k - i + 1
+      TCliqueOverlap::GetMaxCliques(sub_G, 0, cliques);
+      // for (int clique_idx = 0; clique_idx < cliques.Len(); clique_idx++) {
+
+      for (int j = 0; j < cliques.Len(); j++) {
+        TIntV cq = cliques[j];
+        neigh_Union.Clr();
+        int flag = 0;
+        vector<int> vec_cq;
+        for (TIntV::TIter TI = cq.BegI(); TI < cq.EndI(); TI++) {
+          vec_cq.push_back(*TI);
+          neigh_Union.AddV(in_neighs.GetDat(*TI));
+        }
+        currentCliques.push_back(vec_cq);
+        neigh_Union.Merge();
+        cliques_neighs_union.AddDat(cq, neigh_Union);
+        // clique_in_neighs.push({vec_cq, pai r<int, int>(i + vec_cq.size(),
+        // i)});
+        vec_cq.clear();
+
+        int cost = k - neigh_Union.Len();
+        if (cost == 0) {
+          // TODO: 这里有问题，存在cost=0的点
+          // cout << "false" << endl;
+          // // 输出 neigh_Union 的值
+          // cout << "neigh_Union for clique (" << i << ", " << j << "): ";
+          // for (TIntV::TIter TI = neigh_Union.BegI(); TI < neigh_Union.EndI();
+          // TI++) {
+          //     cout << *TI << " ";
+          // }
+          // cout << endl;
+          cost = INT_MAX;
+        }
+        double gain = (2 * VCC_i.Len() + cq.Len()) * cq.Len();
+        r.push({make_pair(i, clq_idx + j), (double)gain / cost});
+      }
+      clq_idx += cliques.Len();
+    }
+    allCliques.push_back(currentCliques);
+  }
+
+  bool flag = true;
+  while (flag && !r.empty()) {
+    auto top = r.top();
+    r.pop();
+    int i_star = top.first.first, j_star = top.first.second,
+        r_ij_star = top.second;
+    std::cout << "Key: (" << i_star << ", " << j_star
+              << "), Value: " << r_ij_star << std::endl;
+    if (r_ij_star == 0) {
+      flag = false;
+      break;
+    }
+    I.push_back(i_star);
+    MC.push_back(allCliques[i_star][j_star]);
+    R.push_back(r_ij_star);
+  }
+}
+
+void Master::ExpSinVertices(
+    TIntVIntV& VCCs, double& r,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge) {
+  int best_cost, best_v;
+  TIntV best_vcc, best_in_neighs;
+  VCCs.Sort();
+  TIntV VCC_max = VCCs.Last();
+  for (int i = VCCs.Len() - 1; i >= 0; --i) {
+    if (VCCs[i].Len() < (2 * VCC_max.Len() - k + 2) / (2 * k - 2)) {
+      break;
+    }
+    TIntV Vcc_i = VCCs[i];
+    TIntV delta_S, delta_S_bar;
+    delta_S = GetBoundary(Vcc_i, delta_S_bar);
+    TIntV G_sub = delta_S;
+    G_sub.AddVMerged(delta_S_bar);
+    PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
+    TIntVIntV S;
+    for (int i = 0; i <= k; i++) {
+      S.Add({});
+    }
+    TIntV res = {};
+    TIntV nb_u1 = {}, nb_u2 = {};
+
+    TIntIntVH in_neighs, out_neighs;
+    for (TIntV::TIter TI = delta_S_bar.BegI(); TI < delta_S_bar.EndI(); TI++) {
+      nb_u1.Clr();
+      nb_u2.Clr();
+      TUNGraph::TNodeI v = G_Cand->GetNI(*TI);
+      for (int i = 0; i < v.GetInDeg(); ++i) {
+        if (delta_S.IsIn(v.GetInNId(i)))  // only consider neighbors in
+          // k-vcc
+          nb_u1.AddMerged(v.GetInNId(i));
+        else
+          nb_u2.AddMerged(v.GetInNId(i));
+      }
+      in_neighs.AddDat(*TI, nb_u1);
+      out_neighs.AddDat(*TI, nb_u2);
+      int deg = nb_u1.Len();
+
+      int cost = k - deg;
+      double gain = 2 * Vcc_i.Len() + 1;
+      if (r < double(gain) / cost) {
+        r = double(gain) / cost;
+        best_cost = cost;
+        best_v = *TI;
+        best_vcc = Vcc_i;
+        best_in_neighs = in_neighs.GetDat(best_v);
+      }
+    }
+  }
+
+  TIntV S_cand;
+  for (TIntV::TIter TI = best_vcc.BegI(); TI < best_vcc.EndI(); TI++) {
+    if (!best_in_neighs.IsIn(*TI)) {
+      S_cand.Add(*TI);
+    }
+  }
+  sort_by_deg(S_cand);
+  acost += best_cost;
+  while (best_cost > 0) {
+    int u = S_cand[0];
+    if (Inserted_Edge.find({u, best_v}) != Inserted_Edge.end()) continue;
+    Inserted_Edge.insert({u, best_v});
+    best_cost -= 1;
+    S_cand.DelIfIn(u);
   }
 }

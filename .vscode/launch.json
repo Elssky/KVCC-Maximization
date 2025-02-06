@@ -8,15 +8,15 @@
             "program": "${workspaceFolder}/main",
             "args": [
                 "-d",
-                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/ca-HepPh",
+                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/web-arabic-2005",
                 "-c",
-                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/ca-HepPh",
+                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/web-arabic-2005",
                 "-k",
-                "3",
+                "5",
                 "-b",
-                "100",
+                "50",
                 "-a",
-                "t"
+                "s"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

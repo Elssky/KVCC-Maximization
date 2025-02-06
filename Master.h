@@ -37,6 +37,17 @@ struct Compare {
   }
 };
 
+// use priority queue to select the clique with max size + level (|c| + i)
+auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
+               const std::pair<std::vector<int>, std::pair<int, int>>& b) {
+  const auto& a_first = a.second.first;
+  const auto& b_first = b.second.first;
+  const auto& a_second = a.second.second;
+  const auto& b_second = b.second.second;
+
+  return (a_first == b_first) ? (a_second > b_second) : (a_first < b_first);
+};
+
 class Master {
  public:
   int nfs;    // the number of all followers;
@@ -78,6 +89,12 @@ class Master {
       const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
 
   void CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
-                      vector<vector<int>>& T, vector<int>& R);
+                      vector<vector<int>>& T, vector<double>& R);
+
+  void CalMulVerices(TIntVIntV& VCCs, vector<int>& I, vector<vector<int>>& MC,
+                     vector<double>& R);
+
+  void ExpSinVertices(TIntVIntV& VCCs, double& r,
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
 };
 #endif
