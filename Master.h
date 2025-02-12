@@ -37,6 +37,18 @@ struct Compare {
   }
 };
 
+struct Compare_new {
+  //按照 double 值(r)从大到小排序，当 double 值相同时再按照第三个 int 值(cost)从小到大排序
+    bool operator()(const std::tuple<int, int, int, double>& a, const std::tuple<int, int, int, double>& b) const {
+        // 先比较 double 值
+        if (std::get<3>(a) != std::get<3>(b)) {
+            return std::get<3>(a) < std::get<3>(b);
+        }
+        // 如果 double 值相同，比较第三个 int 值
+        return std::get<2>(a) > std::get<2>(b);
+    }
+};
+
 // use priority queue to select the clique with max size + level (|c| + i)
 auto comp = [](const std::pair<std::vector<int>, std::pair<int, int>>& a,
                const std::pair<std::vector<int>, std::pair<int, int>>& b) {
@@ -82,6 +94,9 @@ class Master {
   void sort_by_deg(TIntV& Vcc);
   vector<int> get_common_set(TIntV& Vcc_1, TIntV& Vcc_2);
   TIntV get_difference_set(TIntV& Vcc_1, TIntV& Vcc_2);
+  int get_degree_in_set(int vertex, const TIntV& set);
+  TIntV getNeighborhood(const TIntV& set, const TIntV& targetSet);
+  TIntV getIntersection(const TIntV& set1, const TIntV& set2);
   std::pair<int, int> find_max_in_com_neigh(
       const std::unordered_map<std::pair<int, int>, std::vector<int>,
                                pair_hash>& com_neigh);
@@ -89,12 +104,20 @@ class Master {
       const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
 
   void CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
-                      vector<vector<int>>& T, vector<double>& R);
+                      vector<vector<int>>& T, vector<double>& R,
+                      vector<int>& C);
 
   void CalMulVerices(TIntVIntV& VCCs, vector<int>& I, vector<vector<int>>& MC,
-                     vector<double>& R);
+                     vector<double>& R, vector<int>& C);
 
   void ExpSinVertices(TIntVIntV& VCCs, double& r,
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
+
+  void MerConnectKVcc(TIntV& VCC_i, TIntV& VCC_j, vector<int> t_ij,
+                      vector<int> t_ji, double r_ij, int cost,
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
+
+  void ExpMulVertices(TIntV& VCC_i, TIntV& mc_j, double r_ij,
                       unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
 };
 #endif

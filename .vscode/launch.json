@@ -8,15 +8,13 @@
             "program": "${workspaceFolder}/main",
             "args": [
                 "-d",
-                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/web-arabic-2005",
+                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/CA-CondMat",
                 "-c",
-                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/web-arabic-2005",
+                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/CA-CondMat",
                 "-k",
-                "5",
+                "7",
                 "-b",
                 "50",
-                "-a",
-                "s"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -15,7 +15,7 @@ Master::Master(PUNGraph G, int k, int b) {
   this->k = k;
 }
 
-void Master::Anchoring(string alg, string vcc_data) {
+void Master::Anchoring(std::string alg, std::string vcc_data) {
   double t_begin = (double)clock();
   int round = 0;
   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
@@ -23,56 +23,193 @@ void Master::Anchoring(string alg, string vcc_data) {
   TIntV kvcc, delta_S, delta_S_bar;
   TIntV Expanded_Vertex;
   Load_kvcc(kvcc_array, vcc_data);
-  // select kvcc to expand
-  // kvcc = kvcc_array[1];
-  // unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-  vector<int> Io, Ie, J;
-  vector<double> Ro, Re;
-  vector<vector<int>> T, MC;
-  double r;
-  unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+  std::vector<int> Io, Ie, J, Co, Ce;
+  std::vector<double> Ro, Re;
+  std::vector<std::vector<int>> T, MC;
+  std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
 
-  // CalConnectKVcc(kvcc_array, Io, J, T, Ro);
-  CalMulVerices(kvcc_array, Ie, MC, Re);
+  CalConnectKVcc(kvcc_array, Io, J, T, Ro, Co);
+  std::cout << "CalConnectKVcc 执行完毕，Io 大小: " << Io.size()
+            << ", J 大小: " << J.size() << ", T 大小: " << T.size()
+            << ", Ro 大小: " << Ro.size() << ", Co 大小: " << Co.size()
+            << std::endl;
 
-  // double ra = *Ro.begin();
-  double rb = *Re.begin();
-  ExpSinVertices(kvcc_array, r, Inserted_Edge);
+  CalMulVerices(kvcc_array, Ie, MC, Re, Ce);
+  std::cout << "CalMulVerices 执行完毕，Ie 大小: " << Ie.size()
+            << ", MC 大小: " << MC.size() << ", Re 大小: " << Re.size()
+            << ", Ce 大小: " << Ce.size() << std::endl;
 
-  // while (acost < b) {
-  //   if (!Ro.empty() && !Re.empty()) {
-  //     int ra = *Ro.begin();
-  //     int rb = *Re.begin();
-  //     ExpSinVertices(kvcc_array, r, Inserted_Edge);
-  //     // std::cout << "ra: " << ra << ", rb: " << rb << std::endl;
-  //   } else {
-  //     break;
-  //   }
-  // }
+  std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
+  double total_gain = 0.0;
 
-  // while (acost < b) {
-  //   cout << " -- Anchoring round: " << round++ << endl;
-  //   double vertex_begin = (double)clock();
-  //   double node_score = 0;
+  std::cout << "开始循环，初始 b: " << b << std::endl;
+  while (b > 0) {
+    if (Ro.empty() || Re.empty()) {
+      std::cout << "Ro 或 Re 为空，跳出循环" << std::endl;
+      break;
+    }
+    double ra = Ro.front();
+    Ro.assign(Ro.begin() + 1, Ro.end());
+    double rb = Re.front();
+    Re.assign(Re.begin() + 1, Re.end());
+    double rc = 0;
+    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_single;
+    ExpSinVertices(kvcc_array, rc, Inserted_Edge_single);
 
-  //   // Compute by Multiple Vertex Anchoring
-  //   // vector<double> group;
+    std::cout << "当前 ra: " << ra << ", rb: " << rb << ", rc: " << rc
+              << std::endl;
 
-  // }
+    double current_gain = 0.0;
+    if (ra >= rb && ra >= rc) {
+      current_gain = ra;
+      std::cout << "选择 ra 分支" << std::endl;
+      if (!Io.empty() && !J.empty() && !T.empty()) {
+        int idx = Io.front();
+        Io.assign(Io.begin() + 1, Io.end());
+        int jdx = J.front();
+        J.assign(J.begin() + 1, J.end());
+        std::vector<int> t_ij = T.front();
+        T.assign(T.begin() + 1, T.end());
+        std::vector<int> t_ji = T.front();
+        T.assign(T.begin() + 1, T.end());
+        int mer_cost = Co.front();
+        Co.assign(Co.begin() + 1, Co.end());
+        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_mc;
+        MerConnectKVcc(kvcc_array[idx], kvcc_array[jdx], t_ij, t_ji, ra,
+                       mer_cost, Inserted_Edge_mc);
+        std::cout << "MerConnectKVcc 执行完毕，插入边数量: "
+                  << Inserted_Edge_mc.size() << std::endl;
+        if (b >= static_cast<int>(Inserted_Edge_mc.size())) {
+          total_Inserted_Edge.insert(Inserted_Edge_mc.begin(),
+                                     Inserted_Edge_mc.end());
+          b -= Inserted_Edge_mc.size();
+          std::cout << "插入边成功，剩余 b: " << b << std::endl;
+        } else {
+          std::cout << "成本不足，跳过插入" << std::endl;
+        }
+      } else {
+        std::cout << "Io、J 或 T 为空，跳过此分支" << std::endl;
+      }
+    } else if (rb >= ra && rb >= rc) {
+      current_gain = rb;
+      std::cout << "选择 rb 分支" << std::endl;
+      if (!Ie.empty() && !MC.empty()) {
+        int idx = Ie.front();
+        Ie.assign(Ie.begin() + 1, Ie.end());
+        std::vector<int> mc_j = MC.front();
+        MC.assign(MC.begin() + 1, MC.end());
+        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_emv;
+        TIntV mc_j_TIntV;
+        for (int vertex : mc_j) {
+          mc_j_TIntV.Add(vertex);
+        }
+        ExpMulVertices(kvcc_array[idx], mc_j_TIntV, rb, Inserted_Edge_emv);
+        std::cout << "ExpMulVertices 执行完毕，插入边数量: "
+                  << Inserted_Edge_emv.size() << std::endl;
+        if (b >= static_cast<int>(Inserted_Edge_emv.size())) {
+          total_Inserted_Edge.insert(Inserted_Edge_emv.begin(),
+                                     Inserted_Edge_emv.end());
+          b -= Inserted_Edge_emv.size();
+          std::cout << "插入边成功，剩余 b: " << b << std::endl;
+        } else {
+          std::cout << "成本不足，跳过插入" << std::endl;
+        }
+      } else {
+        std::cout << "Ie 或 MC 为空，跳过此分支" << std::endl;
+      }
+    } else {
+      current_gain = rc;
+      std::cout << "选择 rc 分支" << std::endl;
+      if (b >= static_cast<int>(Inserted_Edge_single.size())) {
+        total_Inserted_Edge.insert(Inserted_Edge_single.begin(),
+                                   Inserted_Edge_single.end());
+        b -= Inserted_Edge_single.size();
+        std::cout << "插入边成功，剩余 b: " << b << std::endl;
+      } else {
+        std::cout << "成本不足，跳过插入" << std::endl;
+      }
+    }
 
-  // cout << "acost: " << acost << endl;
-  // cout << "gain: " << Expanded_Vertex.Len() << endl;
-  // cout << "Expanded_Vertex:";
-  // for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
-  //      NI++) {
-  //   cout << *NI << " ";
-  // }
-  // cout << endl;
-  // double t_end = (double)clock();
-  // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC <<
-  // "s."
-  //      << endl;
+    total_gain += current_gain;
+    round++;
+    std::cout << "第 " << round << " 轮循环结束，当前总 gain: " << total_gain
+              << std::endl;
+  }
+
+  std::cout << "循环结束，最终插入边数量: " << total_Inserted_Edge.size()
+            << std::endl;
+  std::cout << "最终 b: " << b << std::endl;
+  std::cout << "总的 gain: " << total_gain << std::endl;
+  // 伪代码步骤 5: 返回插入边集合 \(\hat{E}\)，这里没有返回语句，可根据需求添加
+  // return total_Inserted_
 }
+
+// void Master::Anchoring(string alg, string vcc_data) {
+//   double t_begin = (double)clock();
+//   int round = 0;
+//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+//   TIntVIntV kvcc_array;
+//   TIntV kvcc, delta_S, delta_S_bar;
+//   TIntV Expanded_Vertex;
+//   Load_kvcc(kvcc_array, vcc_data);
+//   // select kvcc to expand
+//   // kvcc = kvcc_array[1];
+//   // unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+//   vector<int> Io, Ie, J;
+//   vector<double> Ro, Re;
+//   vector<vector<int>> T, MC;
+//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
+
+//   CalConnectKVcc(kvcc_array, Io, J, T, Ro);
+//   CalMulVerices(kvcc_array, Ie, MC, Re);
+
+//   double ra = *Ro.begin();
+//   double rb = *Re.begin();
+//   double rc;
+//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge_single;
+//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge_multi;
+//   ExpSinVertex(kvcc_array, rc, Inserted_Edge_single);
+
+//   if (ra >= rb && ra >= rc) {
+//     alg = "m";
+//   }
+
+//   // while (acost < b) {
+//   //   if (!Ro.empty() && !Re.empty()) {
+//   //     int ra = *Ro.begin();
+//   //     int rb = *Re.begin();
+//   //     ExpSinVertex(kvcc_array, r, Inserted_Edge);
+//   //     // std::cout << "ra: " << ra << ", rb: " << rb << std::endl;
+//   //   } else {
+//   //     break;
+//   //   }
+//   // }
+
+//   // while (acost < b) {
+//   //   cout << " -- Anchoring round: " << round++ << endl;
+//   //   double vertex_begin = (double)clock();
+//   //   double node_score = 0;
+
+//   //   // Compute by Multiple Vertex Anchoring
+//   //   // vector<double> group;
+
+//   // }
+
+//   // cout << "acost: " << acost << endl;
+//   // cout << "gain: " << Expanded_Vertex.Len() << endl;
+//   // cout << "Expanded_Vertex:";
+//   // for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI <
+//   Expanded_Vertex.EndI();
+//   //      NI++) {
+//   //   cout << *NI << " ";
+//   // }
+//   // cout << endl;
+//   // double t_end = (double)clock();
+//   // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC
+//   <<
+//   // "s."
+//   //      << endl;
+// }
 
 // void Master::Anchoring(string alg, string vcc_data) {
 //   double t_begin = (double)clock();
@@ -956,10 +1093,10 @@ void Master::Merge_adjacent_vcc(
 }
 
 void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
-                            vector<vector<int>>& T, vector<double>& R) {
-  std::priority_queue<std::pair<std::pair<int, int>, double>,
-                      std::vector<std::pair<std::pair<int, int>, double>>,
-                      Compare>
+                            vector<vector<int>>& T, vector<double>& R,
+                            vector<int>& C) {
+  std::priority_queue<std::tuple<int, int, int, double>,
+                      std::vector<std::tuple<int, int, int, double>>, Compare>
       r;
   std::unordered_map<pair<int, int>, vector<int>, pair_hash> t;
   cout << "VCCs: " << VCCs.Len() << endl;
@@ -999,7 +1136,7 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
 
       if (cost < k) {
         gain = 2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * VCCs[j].Len();
-        r.push({make_pair(i, j), (double)gain / cost});
+        r.push(make_tuple(i, j, cost, (double)gain / cost));
       }
     }
   }
@@ -1008,10 +1145,11 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
   while (flag && !r.empty()) {
     auto top = r.top();
     r.pop();
-    int i_star = top.first.first, j_star = top.first.second,
-        r_ij_star = top.second;
-    std::cout << "Key: (" << i_star << ", " << j_star
-              << "), Value: " << r_ij_star << std::endl;
+    int i_star = get<0>(top), j_star = get<1>(top),
+        int cost_ij = r_ij_star = get<2>(top);
+    double r_ij_star = get<3>(top);
+    // std::cout << "Key: (" << i_star << ", " << j_star
+    //           << "), Value: " << r_ij_star << std::endl;
     if (r_ij_star == 0) {
       flag = false;
       break;
@@ -1021,14 +1159,15 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
     T.push_back(t[make_pair(j_star, i_star)]);
     J.push_back(j_star);
     R.push_back(r_ij_star);
+    C.push_back(cost_ij);
   }
 }
 
 void Master::CalMulVerices(TIntVIntV& VCCs, vector<int>& I,
-                           vector<vector<int>>& MC, vector<double>& R) {
-  std::priority_queue<std::pair<std::pair<int, int>, double>,
-                      std::vector<std::pair<std::pair<int, int>, double>>,
-                      Compare>
+                           vector<vector<int>>& MC, vector<double>& R,
+                           vector<int>& C) {
+  std::priority_queue<std::tuple<int, int, int, double>,
+                      std::vector<std::tuple<int, int, int, double>>, Compare>
       r;
 
   vector<vector<vector<int>>>
@@ -1136,7 +1275,7 @@ void Master::CalMulVerices(TIntVIntV& VCCs, vector<int>& I,
           cost = INT_MAX;
         }
         double gain = (2 * VCC_i.Len() + cq.Len()) * cq.Len();
-        r.push({make_pair(i, clq_idx + j), (double)gain / cost});
+        r.push(make_tuple(i, clq_idx + j, cost, (double)gain / cost));
       }
       clq_idx += cliques.Len();
     }
@@ -1147,10 +1286,11 @@ void Master::CalMulVerices(TIntVIntV& VCCs, vector<int>& I,
   while (flag && !r.empty()) {
     auto top = r.top();
     r.pop();
-    int i_star = top.first.first, j_star = top.first.second,
-        r_ij_star = top.second;
-    std::cout << "Key: (" << i_star << ", " << j_star
-              << "), Value: " << r_ij_star << std::endl;
+    int i_star = get<0>(top), j_star = get<1>(top),
+    int cost_ij = r_ij_star = get<2>(top);
+    double r_ij_star = get<3>(top);
+    // std::cout << "Key: (" << i_star << ", " << j_star
+    //           << "), Value: " << r_ij_star << std::endl;
     if (r_ij_star == 0) {
       flag = false;
       break;
@@ -1158,18 +1298,24 @@ void Master::CalMulVerices(TIntVIntV& VCCs, vector<int>& I,
     I.push_back(i_star);
     MC.push_back(allCliques[i_star][j_star]);
     R.push_back(r_ij_star);
+    C.push_back(cost_ij);
   }
 }
 
 void Master::ExpSinVertices(
     TIntVIntV& VCCs, double& r,
-    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge) {
+    std::unordered_set<std::pair<int, int>, pair_hash>& Inserted_Edge) {
   int best_cost, best_v;
   TIntV best_vcc, best_in_neighs;
   VCCs.Sort();
   TIntV VCC_max = VCCs.Last();
+
+  std::cout << "VCC_max size: " << VCC_max.Len() << std::endl;
+
   for (int i = VCCs.Len() - 1; i >= 0; --i) {
     if (VCCs[i].Len() < (2 * VCC_max.Len() - k + 2) / (2 * k - 2)) {
+      std::cout << "Skipping VCCs[" << i << "] due to size condition."
+                << std::endl;
       break;
     }
     TIntV Vcc_i = VCCs[i];
@@ -1202,6 +1348,9 @@ void Master::ExpSinVertices(
       int deg = nb_u1.Len();
 
       int cost = k - deg;
+      // std::cout << "Vertex: " << *TI << ", deg: " << deg << ", k: " << k <<
+      // ", cost: " << cost << std::endl;
+
       double gain = 2 * Vcc_i.Len() + 1;
       if (r < double(gain) / cost) {
         r = double(gain) / cost;
@@ -1213,19 +1362,207 @@ void Master::ExpSinVertices(
     }
   }
 
+  std::cout << "best_vcc size: " << best_vcc.Len() << std::endl;
+  std::cout << "best_in_neighs size: " << best_in_neighs.Len() << std::endl;
+  std::cout << "best_cost: " << best_cost << std::endl;
+
   TIntV S_cand;
   for (TIntV::TIter TI = best_vcc.BegI(); TI < best_vcc.EndI(); TI++) {
     if (!best_in_neighs.IsIn(*TI)) {
       S_cand.Add(*TI);
     }
   }
+
+  std::cout << "S_cand size: " << S_cand.Len() << std::endl;
+
   sort_by_deg(S_cand);
-  acost += best_cost;
-  while (best_cost > 0) {
-    int u = S_cand[0];
-    if (Inserted_Edge.find({u, best_v}) != Inserted_Edge.end()) continue;
-    Inserted_Edge.insert({u, best_v});
-    best_cost -= 1;
-    S_cand.DelIfIn(u);
+  // acost += best_cost;
+  // b -= best_cost;  //
+
+  if (S_cand.Empty()) {
+    std::cout << "S_cand is empty! Cannot access S_cand[0]." << std::endl;
+  } else {
+    while (best_cost > 0) {
+      int u = S_cand[0];
+      if (Inserted_Edge.find({u, best_v}) != Inserted_Edge.end()) continue;
+      Inserted_Edge.insert({u, best_v});
+      best_cost -= 1;
+      S_cand.DelIfIn(u);
+    }
   }
+}
+
+// 获取顶点在指定集合中的度数
+int Master::get_degree_in_set(int vertex, const TIntV& set) {
+  int degree = 0;
+  TUNGraph::TNodeI node = G->GetNI(vertex);
+  for (int i = 0; i < node.GetOutDeg(); ++i) {
+    int neighbor = node.GetNbrNId(i);
+    if (set.IsIn(neighbor)) {
+      degree++;
+    }
+  }
+  return degree;
+}
+
+void Master::MerConnectKVcc(
+    TIntV& VCC_i, TIntV& VCC_j, std::vector<int> t_ij, std::vector<int> t_ji,
+    double r_ij, int cost,
+    std::unordered_set<std::pair<int, int>, pair_hash>& Inserted_Edge) {
+  TIntV VCC_i_temp, VCC_j_temp;
+  VCC_i_temp = VCC_i;
+  for (int element : t_ji) {
+    VCC_i_temp.Add(element);
+  }
+
+  VCC_j_temp = VCC_j;
+  for (int element : t_ij) {
+    VCC_j_temp.Add(element);
+  }
+
+  TIntV S_L = get_difference_set(VCC_i, VCC_j_temp);
+  TIntV S_R = get_difference_set(VCC_j, VCC_i_temp);
+
+  // 打印 VCC_i 和 VCC_j 的长度以及 r_ij 的值
+  std::cout << "MerConnectKVcc: VCC_i size: " << VCC_i.Len()
+            << ", VCC_j size: " << VCC_j.Len() << ", r_ij: " << r_ij
+            << std::endl;
+
+  // int cost = 2 * (VCC_i.Len() + VCC_j.Len()) / r_ij;
+
+  std::cout << "MerConnectKVcc: S_L size: " << S_L.Len()
+            << ", S_R size: " << S_R.Len() << ", cost: " << cost << std::endl;
+
+  while (cost > 0) {
+    if (S_L.Empty() || S_R.Empty()) {
+      break;
+    }
+
+    // 从 S_L 中选取顶点 v，使得 v 在 VCC_i 中的度数最小
+    int v = -1;
+    int min_degree = std::numeric_limits<int>::max();
+    for (int i = 0; i < S_L.Len(); ++i) {
+      int degree = get_degree_in_set(S_L[i], VCC_i);
+      if (degree < min_degree) {
+        min_degree = degree;
+        v = S_L[i];
+      }
+    }
+
+    // 从 S_R 中选取顶点 u，使得 u 在 VCC_j 中的度数最小
+    int u = -1;
+    min_degree = std::numeric_limits<int>::max();
+    for (int i = 0; i < S_R.Len(); ++i) {
+      int degree = get_degree_in_set(S_R[i], VCC_j);
+      if (degree < min_degree) {
+        min_degree = degree;
+        u = S_R[i];
+      }
+    }
+
+    // 将边 (v, u) 加入到 Inserted_Edge 中
+    Inserted_Edge.insert({v, u});
+    std::cout << "MerConnectKVcc: Inserted edge (" << v << ", " << u << ")"
+              << std::endl;
+
+    // cost 减 1
+    cost--;
+
+    // 从 S_L 中移除顶点 v，从 S_R 中移除顶点 u
+    S_L.DelIfIn(v);
+    S_R.DelIfIn(u);
+  }
+
+  // 步骤 5: 返回插入的边集合
+  // return Inserted_Edge;
+}
+
+TIntV Master::getNeighborhood(const TIntV& set, const TIntV& targetSet) {
+  TIntV neighborhood;
+  for (int i = 0; i < set.Len(); ++i) {
+    TUNGraph::TNodeI node = G->GetNI(set[i]);
+    for (int j = 0; j < node.GetOutDeg(); ++j) {
+      int neighbor = node.GetNbrNId(j);
+      if (targetSet.IsIn(neighbor) && !neighborhood.IsIn(neighbor)) {
+        neighborhood.Add(neighbor);
+      }
+    }
+  }
+  return neighborhood;
+}
+
+TIntV Master::getIntersection(const TIntV& set1, const TIntV& set2) {
+  TIntV result;
+  for (int i = 0; i < set1.Len(); ++i) {
+    if (set2.IsIn(set1[i])) {
+      result.Add(set1[i]);
+    }
+  }
+  return result;
+}
+
+void Master::ExpMulVertices(
+    TIntV& VCC_i, TIntV& mc_j, double r_ij,
+    unordered_set<pair<int, int>, pair_hash>& Inserted_Edge) {
+  // 步骤 1: 计算 S_L
+  TIntV neighborhood_mc_in_psi = getNeighborhood(mc_j, VCC_i);
+  TIntV intersection_psi_neigh = getIntersection(VCC_i, neighborhood_mc_in_psi);
+  TIntV S_L = get_difference_set(VCC_i, intersection_psi_neigh);
+
+  // 步骤 2: 计算 S_R
+  // TIntV neighborhood_psi_in_mc = getNeighborhood(VCC_i, mc_j);
+  // TIntV intersection_mc_neigh = getIntersection(mc_j,
+  // neighborhood_psi_in_mc); TIntV S_R = get_difference_set(mc_j,
+  // intersection_mc_neigh);
+  TIntV S_R = mc_j;
+  // 步骤 3: 计算初始代价 cost
+  int cost = 2 * VCC_i.Len() * mc_j.Len() + (mc_j.Len() * mc_j.Len()) / r_ij;
+
+  std::cout << "ExpMulVertices: S_L size: " << S_L.Len()
+            << ", S_R size: " << S_R.Len() << ", cost: " << cost << std::endl;
+  // 步骤 4: 循环处理
+  while (cost > 0) {
+    if (S_L.Empty() || S_R.Empty()) {
+      break;
+    }
+
+    // 在 S_L 中找到使 d_psi_k(v) 最小的顶点 v
+    int v = -1;
+    int min_degree_psi = std::numeric_limits<int>::max();
+    for (int i = 0; i < S_L.Len(); ++i) {
+      int degree = get_degree_in_set(S_L[i], VCC_i);
+      if (degree < min_degree_psi) {
+        min_degree_psi = degree;
+        v = S_L[i];
+      }
+    }
+
+    // 在 S_R 中找到使 d_mc_j(u) 最小的顶点 u
+    int u = -1;
+    int min_degree = std::numeric_limits<int>::max();
+    for (int i = 0; i < S_R.Len(); ++i) {
+      int degree = get_degree_in_set(S_R[i], mc_j);
+      if (degree < min_degree) {
+        min_degree = degree;
+        u = S_R[i];
+      }
+    }
+
+    // 将边 (v, u) 添加到边集合 Inserted_Edge 中
+    Inserted_Edge.insert({v, u});
+    std::cout << "ExpMulVertices: Inserted edge (" << v << ", " << u << ")"
+              << std::endl;
+
+    // 更新邻域信息 Neighbours(u, Q)（这里简单跳过，可根据实际需求实现）
+    // update_neighbour
+    // 将 cost 减 1
+    cost--;
+
+    // 从 S_L 中移除顶点 v，从 S_R 中移除顶点 u
+    S_L.DelIfIn(v);
+    S_R.DelIfIn(u);
+  }
+
+  // 步骤 5: 返回插入的边集合 Inserted_Edge
+  // return Inserted_Edge;
 }
