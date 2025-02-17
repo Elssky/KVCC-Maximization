@@ -38,15 +38,17 @@ struct Compare {
 };
 
 struct Compare_new {
-  //按照 double 值(r)从大到小排序，当 double 值相同时再按照第三个 int 值(cost)从小到大排序
-    bool operator()(const std::tuple<int, int, int, double>& a, const std::tuple<int, int, int, double>& b) const {
-        // 先比较 double 值
-        if (std::get<3>(a) != std::get<3>(b)) {
-            return std::get<3>(a) < std::get<3>(b);
-        }
-        // 如果 double 值相同，比较第三个 int 值
-        return std::get<2>(a) > std::get<2>(b);
+  //按照 double 值(r)从大到小排序，当 double 值相同时再按照第三个 int
+  //值(cost)从小到大排序
+  bool operator()(const std::tuple<int, int, int, double>& a,
+                  const std::tuple<int, int, int, double>& b) const {
+    // 先比较 double 值
+    if (std::get<3>(a) != std::get<3>(b)) {
+      return std::get<3>(a) < std::get<3>(b);
     }
+    // 如果 double 值相同，比较第三个 int 值
+    return std::get<2>(a) > std::get<2>(b);
+  }
 };
 
 // use priority queue to select the clique with max size + level (|c| + i)
@@ -103,15 +105,15 @@ class Master {
   std::pair<int, int> find_max_in_gamma(
       const std::unordered_map<std::pair<int, int>, int, pair_hash>& gamma);
 
-  void CalConnectKVcc(TIntVIntV& VCCs, vector<int>& I, vector<int>& J,
-                      vector<vector<int>>& T, vector<double>& R,
-                      vector<int>& C);
+  void CalConnectKVcc(TIntVIntV& VCCs, int& i_star, int& j_star,
+                      vector<vector<int>>& t_star, double& r_star,
+                      int& cost_star);
 
-  void CalMulVerices(TIntVIntV& VCCs, vector<int>& I, vector<vector<int>>& MC,
-                     vector<double>& R, vector<int>& C);
+  void CalMulVerices(TIntVIntV& VCCs, int& i_star, vector<int>& mc_star,
+                     double& r_star, int& cost_star);
 
   void ExpSinVertices(TIntVIntV& VCCs, double& r,
-                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge, int &v,  int& vcc_idx);
 
   void MerConnectKVcc(TIntV& VCC_i, TIntV& VCC_j, vector<int> t_ij,
                       vector<int> t_ji, double r_ij, int cost,
@@ -119,5 +121,21 @@ class Master {
 
   void ExpMulVertices(TIntV& VCC_i, TIntV& mc_j, double r_ij,
                       unordered_set<pair<int, int>, pair_hash>& Inserted_Edge);
+  void InsertEdgesIntoGraph(
+      const std::unordered_set<std::pair<int, int>, pair_hash>& edgeSet) {
+    for (const auto& edge : edgeSet) {
+      int src = edge.first;
+      int dst = edge.second;
+      if (!G->IsNode(src)) {
+        G->AddNode(src);
+      }
+      if (!G->IsNode(dst)) {
+        G->AddNode(dst);
+      }
+      if (!G->IsEdge(src, dst)) {
+        G->AddEdge(src, dst);
+      }
+    }
+  }
 };
 #endif
