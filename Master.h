@@ -13,6 +13,7 @@
 #include "cliques.h"
 #include "maxMatch.h"
 #include "utility.h"
+#include <chrono>
 using namespace std;
 
 typedef TVec<TInt> TIntV;
@@ -107,13 +108,13 @@ class Master {
 
   void CalConnectKVcc(TIntVIntV& VCCs, int& i_star, int& j_star,
                       vector<vector<int>>& t_star, double& r_star,
-                      int& cost_star);
+                      int& cost_star, double& best_gain);
 
   void CalMulVerices(TIntVIntV& VCCs, int& i_star, vector<int>& mc_star,
-                     double& r_star, int& cost_star);
+                     double& r_star, int& cost_star, double& best_gain);
 
   void ExpSinVertices(TIntVIntV& VCCs, double& r,
-                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge, int &v,  int& vcc_idx);
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge, int &v,  int& vcc_idx, double& best_gain);
 
   void MerConnectKVcc(TIntV& VCC_i, TIntV& VCC_j, vector<int> t_ij,
                       vector<int> t_ji, double r_ij, int cost,
