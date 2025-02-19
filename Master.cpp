@@ -16,6 +16,7 @@ Master::Master(PUNGraph G, int k, int b) {
 }
 
 void Master::Anchoring(std::string alg, std::string vcc_data) {
+  auto start_time = std::chrono::high_resolution_clock::now();
   double t_begin = (double)clock();
   int round = 0;
   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
@@ -44,6 +45,21 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
   double prev_Ro = 0.0;
   int prev_Co = 0;
   double prev_gain_mer = 0.0;
+
+  int initial_b = b;
+  double quarter_b = initial_b * 0.25;
+  double half_b = initial_b * 0.5;
+  double three_quarters_b = initial_b * 0.75;
+
+  double quarter_time = 0.0;
+  double half_time = 0.0;
+  double three_quarters_time = 0.0;
+  double full_time = 0.0;
+
+  double quarter_gain = 0.0;
+  double half_gain = 0.0;
+  double three_quarters_gain = 0.0;
+  double full_gain = 0.0;
 
   std::cout << "开始循环，初始 b: " << b << std::endl;
   while (b > 0) {
@@ -245,6 +261,36 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
     // 更新上一轮的 ra 和 rb 值
     prev_ra = ra;
     prev_rb = rb;
+
+    // 检查 b 的消耗情况
+    if (initial_b - b >= quarter_b && quarter_time == 0) {
+      auto current_time = std::chrono::high_resolution_clock::now();
+      quarter_time = std::chrono::duration_cast<std::chrono::seconds>(
+                         current_time - start_time)
+                         .count();
+      quarter_gain = total_gain;
+    }
+    if (initial_b - b >= half_b && half_time == 0) {
+      auto current_time = std::chrono::high_resolution_clock::now();
+      half_time = std::chrono::duration_cast<std::chrono::seconds>(
+                      current_time - start_time)
+                      .count();
+      half_gain = total_gain;
+    }
+    if (initial_b - b >= three_quarters_b && three_quarters_time == 0) {
+      auto current_time = std::chrono::high_resolution_clock::now();
+      three_quarters_time = std::chrono::duration_cast<std::chrono::seconds>(
+                                current_time - start_time)
+                                .count();
+      three_quarters_gain = total_gain;
+    }
+    if (b == 0 && full_time == 0) {
+      auto current_time = std::chrono::high_resolution_clock::now();
+      full_time = std::chrono::duration_cast<std::chrono::seconds>(
+                      current_time - start_time)
+                      .count();
+      full_gain = total_gain;
+    }
   }
 
   std::cout << "循环结束，最终插入边数量: " << total_Inserted_Edge.size()
@@ -263,6 +309,16 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
             << std::endl;
   std::cout << "ExpMulVertices 总耗时: " << total_exp_mul_vertices_time << " 秒"
             << std::endl;
+
+  // 输出 b 消耗 25%、50%、75%、100% 时的时间和 gain
+  std::cout << "b 消耗 25% 时，时间: " << quarter_time
+            << " 秒，gain: " << quarter_gain << std::endl;
+  std::cout << "b 消耗 50% 时，时间: " << half_time
+            << " 秒，gain: " << half_gain << std::endl;
+  std::cout << "b 消耗 75% 时，时间: " << three_quarters_time
+            << " 秒，gain: " << three_quarters_gain << std ::endl;
+  std::cout << "b 消耗 100% 时，时间: " << full_time
+            << " 秒，gain: " << full_gain << std::endl;
 }
 
 // void Master::Anchoring(string alg, string vcc_data) {
