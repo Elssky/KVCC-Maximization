@@ -187,7 +187,8 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
           kvcc_array.Del(jdx);
           std::cout << "插入边成功，剩余 b: " << b << std::endl;
         } else {
-          std::cout << "成本不足，跳过插入" << std::endl;
+          std::cout << "成本不足，程序结束" << std::endl;
+          break;
         }
       } else {
         std::cout << "T 为空，跳过此分支" << std::endl;
@@ -231,7 +232,8 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
           }
           std::cout << "插入边成功，剩余 b: " << b << std::endl;
         } else {
-          std::cout << "成本不足，跳过插入" << std::endl;
+          std::cout << "成本不足，程序结束" << std::endl;
+          break;
         }
       } else {
         std::cout << "MC 为空，跳过此分支" << std::endl;
@@ -250,7 +252,8 @@ void Master::Anchoring(std::string alg, std::string vcc_data) {
         }
         std::cout << "插入边成功，剩余 b: " << b << std::endl;
       } else {
-        std::cout << "成本不足，跳过插入" << std::endl;
+        std::cout << "成本不足，程序结束" << std::endl;
+        break;
       }
     }
     total_gain += current_gain;
@@ -1491,7 +1494,7 @@ void Master::ExpSinVertices(
       // ", cost: " << cost << std::endl;
 
       double gain = 2 * Vcc_i.Len() + 1;
-      if (r < gain / cost) {
+      if (r < gain / cost && cost <= b) {
         r = gain / cost;
         best_cost = cost;
         best_v = *TI;
