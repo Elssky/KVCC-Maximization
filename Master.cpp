@@ -7,321 +7,435 @@
 #define debug_print(msg)
 #endif
 
-Master::Master(PUNGraph G, int k, int b) {
+Master::Master(PUNGraph G, int k, int b, bool disable_cck, bool disable_cmv) {
   this->G = G;
   acost = 0;
   nfs = 0;
   this->b = b;
   this->k = k;
+  this->disable_cck = disable_cck;
+  this->disable_cmv = disable_cmv;
 }
 
-void Master::Anchoring(std::string alg, std::string vcc_data) {
-  auto start_time = std::chrono::high_resolution_clock::now();
-  double t_begin = (double)clock();
-  int round = 0;
-  double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
-  TIntVIntV kvcc_array;
-  TIntV kvcc, delta_S, delta_S_bar;
-  TIntV Expanded_Vertex;
-  Load_kvcc(kvcc_array, vcc_data);
-  std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
-  double total_gain = 0.0;
+// void Exact_Anchoring(std::string alg, std::string vcc_data) {
+//   double t_begin = (double)clock();
+//   int round = 0;
+//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+//   TIntVIntV kvcc_array;
+//   TIntV kvcc, delta_S, delta_S_bar;
+//   TIntV Expanded_Vertex;
+//   Load_kvcc(kvcc_array, vcc_data);
+//   std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
+//   double total_gain = 0.0;
+//   auto start_time = std::chrono::high_resolution_clock::now();
 
-  // 初始化各函数总耗时
-  double total_cal_connect_kvcc_time = 0.0;
-  double total_cal_mul_verices_time = 0.0;
-  double total_exp_sin_vertices_time = 0.0;
-  double total_mer_connect_kvcc_time = 0.0;
-  double total_exp_mul_vertices_time = 0.0;
+//   // 1. 用long
+//   //
+//   long计算图中所有点的k顶点连通能力值，每个点的k顶点连通能力值=他所属于的最大的那个kvcc的大小
+//   int num_vertices = 0;
+//   for (const auto& kvcc : kvcc_array) {
+//     for (int vertex : kvcc) {
+//       num_vertices = std::max(num_vertices, vertex + 1);
+//     }
+//   }
+//   std::vector<int> original_connectivity =
+//       calculateKVertexConnectivity(kvcc_array, num_vertices);
 
-  // 记录上一轮的 ra 和 rb 值
-  double prev_ra = 0.0;
-  double prev_rb = 0.0;
+//   // 2. 枚举图中顶点对应完全图的边 - 图中所有的边， 作为候选集的边
+//   std::unordered_set<std::pair<int, int>, pair_hash> candidate_edges;
+//   for (int i = 0; i < num_vertices; ++i) {
+//     for (int j = i + 1; j < num_vertices; ++j) {
+//       if (G->IsEdge(i, j) == false) candidate_edges.insert({i, j});
+//     }
+//   }
 
-  // 记录上一轮 CalConnectKVcc 的结果
-  int prev_Io = 0;
-  int prev_J = 0;
-  std::vector<std::vector<int>> prev_T;
-  double prev_Ro = 0.0;
-  int prev_Co = 0;
-  double prev_gain_mer = 0.0;
+//   // 3. 从候选集边中依次枚举，每次选择b条边，进行插入，并且计算收益
+//   std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+//       edge_combinations = generateEdgeCombinations(candidate_edges, b);
+//   double max_gain = -DBL_MAX;
+//   std::unordered_set<std::pair<int, int>, pair_hash> best_edges;
+//   for (const auto& combination : edge_combinations) {
+//     double gain = calculateGain(kvcc_array, combination,
+//     original_connectivity); if (gain > max_gain) {
+//       max_gain = gain;
+//       best_edges = combination;
+//     }
+//   }
 
-  int initial_b = b;
-  double quarter_b = initial_b * 0.25;
-  double half_b = initial_b * 0.5;
-  double three_quarters_b = initial_b * 0.75;
+//   // 4. 统计收益最大的b条边
+//   total_Inserted_Edge = best_edges;
+//   total_gain = max_gain;
 
-  double quarter_time = 0.0;
-  double half_time = 0.0;
-  double three_quarters_time = 0.0;
-  double full_time = 0.0;
+//   auto end_time = std::chrono::high_resolution_clock::now();
+//   auto duration =
+//       std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time)
+//           .count();
 
-  double quarter_gain = 0.0;
-  double half_gain = 0.0;
-  double three_quarters_gain = 0.0;
-  double full_gain = 0.0;
+//   std::cout << "最终插入边数量: " << total_Inserted_Edge.size() << std::endl;
+//   std::cout << "总的 gain: " << total_gain << std::endl;
+//   std::cout << "算法耗时: " << duration << " 秒" << std::endl;
+// }
 
-  std::cout << "开始循环，初始 b: " << b << std::endl;
-  while (b > 0) {
-    int Io, Ie, J, Co, Ce;
-    double Ro, Re;
-    std::vector<int> MC;
-    std::vector<std::vector<int>> T;
-    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
-    double gain_sin, gain_mul, gain_mer;
+void Master::Anchoring(std::string alg, std::string vcc_data,
+                       double threshold) {
+    double t_begin = (double)clock();
+    int round = 0;
+    double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+    TIntVIntV kvcc_array;
+    TIntV kvcc, delta_S, delta_S_bar;
+    TIntV Expanded_Vertex;
+    Load_kvcc(kvcc_array, vcc_data);
+    std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
+    double total_gain = 0.0;
 
-    bool use_optimized_strategy = (alg == "approximate");
-    bool can_execute_cal_connect_kvcc = true;
+    // 用于记录所有插入的边
+    std::vector<std::pair<int, int>> allInsertedEdges;
 
-    if (use_optimized_strategy) {
-      can_execute_cal_connect_kvcc = (round == 0) || (prev_ra > prev_rb * 0.9);
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // 初始化各函数总耗时
+    double total_cal_connect_kvcc_time = 0.0;
+    double total_cal_mul_verices_time = 0.0;
+    double total_exp_sin_vertices_time = 0.0;
+    double total_mer_connect_kvcc_time = 0.0;
+    double total_exp_mul_vertices_time = 0.0;
+    double total_time = 0.0;
+
+    // 记录上一轮的 ra 和 rb 值
+    double prev_ra = 0.0;
+    double prev_rb = 0.0;
+
+    // 记录上一轮 CalConnectKVcc 的结果
+    int prev_Io = 0;
+    int prev_J = 0;
+    std::vector<std::vector<int>> prev_T;
+    double prev_Ro = 0.0;
+    int prev_Co = 0;
+    double prev_gain_mer = 0.0;
+
+    int initial_b = b;
+    double quarter_b = initial_b * 0.25;
+    double half_b = initial_b * 0.5;
+    double three_quarters_b = initial_b * 0.75;
+
+    double quarter_time = 0.0;
+    double half_time = 0.0;
+    double three_quarters_time = 0.0;
+    double full_time = 0.0;
+
+    double quarter_gain = 0.0;
+    double half_gain = 0.0;
+    double three_quarters_gain = 0.0;
+    double full_gain = 0.0;
+
+    std::cout << "开始循环，初始 b: " << b << std::endl;
+    while (b > 0) {
+        int Io, Ie, J, Co, Ce;
+        double Ro = 0, Re = 0;
+        std::vector<int> MC;
+        std::vector<std::vector<int>> T;
+        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge;
+        double gain_sin, gain_mul, gain_mer;
+
+        bool use_optimized_strategy = (alg == "approximate");
+        bool can_execute_cal_connect_kvcc = true;
+
+        if (use_optimized_strategy) {
+            can_execute_cal_connect_kvcc =
+                (round == 0) || (prev_ra > prev_rb * threshold);
+        }
+
+        if (can_execute_cal_connect_kvcc) {
+            // 记录 CalConnectKVcc 开始时间
+            auto start_cal_connect_kvcc = std::chrono::high_resolution_clock::now();
+            if (!disable_cck) {
+                CalConnectKVcc(kvcc_array, Io, J, T, Ro, Co, gain_mer);
+            } else {
+                Io = 0;
+                J = 0;
+                T.clear();
+                Ro = 0.0;
+                Co = 0;
+                gain_mer = 0.0;
+            }
+            // 记录 CalConnectKVcc 结束时间
+            auto end_cal_connect_kvcc = std::chrono::high_resolution_clock::now();
+            auto duration_cal_connect_kvcc =
+                std::chrono::duration_cast<std::chrono::seconds>(
+                    end_cal_connect_kvcc - start_cal_connect_kvcc)
+                    .count();
+            total_cal_connect_kvcc_time += duration_cal_connect_kvcc;
+
+            // 更新上一轮的结果
+            prev_Io = Io;
+            prev_J = J;
+            prev_T = T;
+            prev_Ro = Ro;
+            prev_Co = Co;
+            prev_gain_mer = gain_mer;
+        } else {
+            // 沿用上一轮的值
+            Io = prev_Io;
+            J = prev_J;
+            T = prev_T;
+            Ro = prev_Ro;
+            Co = prev_Co;
+            gain_mer = prev_gain_mer;
+        }
+
+        // std::cout << "T size after CalConnectKVcc: " << T.size() << std::endl;
+
+        // 记录 CalMulVerices 开始时间
+        auto start_cal_mul_verices = std::chrono::high_resolution_clock::now();
+        if (!disable_cmv) {
+            CalMulVerices(kvcc_array, Ie, MC, Re, Ce, gain_mul);
+        } else {
+            Ie = 0;
+            MC.clear();
+            Re = 0.0;
+            Ce = 0;
+            gain_mul = 0.0;
+        }
+        // CalMulVerices(kvcc_array, Ie, MC, Re, Ce, gain_mul);
+        // 记录 CalMulVerices 结束时间
+        auto end_cal_mul_verices = std::chrono::high_resolution_clock::now();
+        auto duration_cal_mul_verices =
+            std::chrono::duration_cast<std::chrono::seconds>(end_cal_mul_verices -
+                                                             start_cal_mul_verices)
+                .count();
+        total_cal_mul_verices_time += duration_cal_mul_verices;
+
+        double ra = Ro;
+        double rb = Re;
+        double rc = 0;
+        int v = -1;
+        int single_vcc_idx = -1;
+
+        // 记录 ExpSinVertices 开始时间
+        auto start_exp_sin_vertices = std::chrono::high_resolution_clock::now();
+        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_single;
+        ExpSinVertices(kvcc_array, rc, Inserted_Edge_single, v, single_vcc_idx,
+                       gain_sin);
+        // 记录 ExpSinVertices 结束时间
+        auto end_exp_sin_vertices = std::chrono::high_resolution_clock::now();
+        auto duration_exp_sin_vertices =
+            std::chrono::duration_cast<std::chrono::seconds>(end_exp_sin_vertices -
+                                                             start_exp_sin_vertices)
+                .count();
+        total_exp_sin_vertices_time += duration_exp_sin_vertices;
+
+        std::cout << "当前 ra: " << ra << ", rb: " << rb << ", rc: " << rc
+                  << std::endl;
+
+        double current_gain = 0.0;
+        if (ra == 0 && rb == 0 && rc == 0) {
+            break;
+        }
+        if (ra >= rb && ra >= rc) {
+            std::cout << "选择 ra 分支" << std::endl;
+            if (!T.empty()) {
+                int idx = Io;
+                int jdx = J;
+                std::vector<int> t_ij = T.front();
+                T.assign(T.begin() + 1, T.end());
+                std::vector<int> t_ji = T.front();
+                T.assign(T.begin() + 1, T.end());
+                int mer_cost = Co;
+
+                // 记录 MerConnectKVcc 开始时间
+                auto start_mer_connect_kvcc = std::chrono::high_resolution_clock::now();
+                std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_mc;
+                MerConnectKVcc(kvcc_array[idx], kvcc_array[jdx], t_ij, t_ji, ra,
+                               mer_cost, Inserted_Edge_mc);
+                // 记录 MerConnectKVcc 结束时间
+                auto end_mer_connect_kvcc = std::chrono::high_resolution_clock::now();
+                auto duration_mer_connect_kvcc =
+                    std::chrono::duration_cast<std::chrono::seconds>(
+                        end_mer_connect_kvcc - start_mer_connect_kvcc)
+                        .count();
+                total_mer_connect_kvcc_time += duration_mer_connect_kvcc;
+
+                current_gain = gain_mer;
+                std::cout << "MerConnectKVcc 执行完毕，插入边数量: "
+                          << Inserted_Edge_mc.size() << std::endl;
+                if (b >= static_cast<int>(Inserted_Edge_mc.size())) {
+                    total_Inserted_Edge.insert(Inserted_Edge_mc.begin(),
+                                               Inserted_Edge_mc.end());
+                    // 将插入的边记录到 allInsertedEdges 中
+                    for (const auto& edge : Inserted_Edge_mc) {
+                        allInsertedEdges.push_back(edge);
+                    }
+                    b -= Inserted_Edge_mc.size();
+                    InsertEdgesIntoGraph(Inserted_Edge_mc);
+                    // 将 idx 和 jdx 对应的 kvcc 合并
+                    TIntV merged_kvcc = kvcc_array[idx];
+                    for (TIntV::TIter it = kvcc_array[jdx].BegI();
+                         it < kvcc_array[jdx].EndI(); ++it) {
+                        if (!merged_kvcc.IsIn(*it)) {
+                            merged_kvcc.Add(*it);
+                        }
+                    }
+                    kvcc_array[idx] = merged_kvcc;
+                    // 移除 jdx 对应的 kvcc
+                    kvcc_array.Del(jdx);
+                    std::cout << "插入边成功，剩余 b: " << b << std::endl;
+                } else {
+                    std::cout << "成本不足，程序结束" << std::endl;
+                    break;
+                }
+            } else {
+                std::cout << "T 为空，跳过此分支" << std::endl;
+            }
+        } else if (rb >= ra && rb >= rc) {
+            std::cout << "选择 rb 分支" << std::endl;
+            if (!MC.empty()) {
+                int idx = Ie;
+                std::vector<int> mc_j = MC;
+                std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_emv;
+                TIntV mc_j_TIntV;
+                for (int vertex : mc_j) {
+                    mc_j_TIntV.Add(vertex);
+                }
+
+                // 记录 ExpMulVertices 开始时间
+                auto start_exp_mul_vertices = std::chrono::high_resolution_clock::now();
+                ExpMulVertices(kvcc_array[idx], mc_j_TIntV, rb, Inserted_Edge_emv);
+                // 记录 ExpMulVertices 结束时间
+                auto end_exp_mul_vertices = std::chrono::high_resolution_clock::now();
+                auto duration_exp_mul_vertices =
+                    std::chrono::duration_cast<std::chrono::seconds>(
+                        end_exp_mul_vertices - start_exp_mul_vertices)
+                        .count();
+                total_exp_mul_vertices_time += duration_exp_mul_vertices;
+
+                current_gain = gain_mul;
+                std::cout << "ExpMulVertices 执行完毕，插入边数量: "
+                          << Inserted_Edge_emv.size() << std::endl;
+                if (b >= static_cast<int>(Inserted_Edge_emv.size())) {
+                    total_Inserted_Edge.insert(Inserted_Edge_emv.begin(),
+                                               Inserted_Edge_emv.end());
+                    // 将插入的边记录到 allInsertedEdges 中
+                    for (const auto& edge : Inserted_Edge_emv) {
+                        allInsertedEdges.push_back(edge);
+                    }
+                    b -= Inserted_Edge_emv.size();
+                    InsertEdgesIntoGraph(Inserted_Edge_emv);
+                    // 将 mc_j_TIntV 中的点添加到 kvcc_array[idx]
+                    for (TIntV::TIter it = mc_j_TIntV.BegI(); it < mc_j_TIntV.EndI();
+                         ++it) {
+                        if (!kvcc_array[idx].IsIn(*it)) {
+                            kvcc_array[idx].Add(*it);
+                        }
+                    }
+                    std::cout << "插入边成功，剩余 b: " << b << std::endl;
+                } else {
+                    std::cout << "成本不足，程序结束" << std::endl;
+                    break;
+                }
+            } else {
+                std::cout << "MC 为空，跳过此分支" << std::endl;
+            }
+        } else {
+            current_gain = gain_sin;
+            std::cout << "选择 rc 分支" << std::endl;
+            if (b >= static_cast<int>(Inserted_Edge_single.size())) {
+                total_Inserted_Edge.insert(Inserted_Edge_single.begin(),
+                                           Inserted_Edge_single.end());
+                // 将插入的边记录到 allInsertedEdges 中
+                for (const auto& edge : Inserted_Edge_single) {
+                    allInsertedEdges.push_back(edge);
+                }
+                b -= Inserted_Edge_single.size();
+                InsertEdgesIntoGraph(Inserted_Edge_single);
+                // 将顶点 v 加到下标为 single_vcc_idx 的 kvcc 中
+                if (!kvcc_array[single_vcc_idx].IsIn(v)) {
+                    kvcc_array[single_vcc_idx].Add(v);
+                }
+                std::cout << "插入边成功，剩余 b: " << b << std::endl;
+            } else {
+                std::cout << "成本不足，程序结束" << std::endl;
+                break;
+            }
+        }
+        total_gain += current_gain;
+        round++;
+        std::cout << "第 " << round << " 轮循环结束，当前总 gain: " << total_gain
+                  << std::endl;
+
+        // 更新上一轮的 ra 和 rb 值
+        prev_ra = ra;
+        prev_rb = rb;
+
+        // 检查 b 的消耗情况
+        if (initial_b - b >= quarter_b && quarter_time == 0) {
+            auto current_time = std::chrono::high_resolution_clock::now();
+            quarter_time = std::chrono::duration_cast<std::chrono::seconds>(
+                               current_time - start_time)
+                               .count();
+            quarter_gain = total_gain;
+        }
+        if (initial_b - b >= half_b && half_time == 0) {
+            auto current_time = std::chrono::high_resolution_clock::now();
+            half_time = std::chrono::duration_cast<std::chrono::seconds>(
+                            current_time - start_time)
+                            .count();
+            half_gain = total_gain;
+        }
+        if (initial_b - b >= three_quarters_b && three_quarters_time == 0) {
+            auto current_time = std::chrono::high_resolution_clock::now();
+            three_quarters_time = std::chrono::duration_cast<std::chrono::seconds>(
+                                      current_time - start_time)
+                                      .count();
+            three_quarters_gain = total_gain;
+        }
+        if (b == 0 && full_time == 0) {
+            auto current_time = std::chrono::high_resolution_clock::now();
+            full_time = std::chrono::duration_cast<std::chrono::seconds>(
+                            current_time - start_time)
+                            .count();
+            full_gain = total_gain;
+        }
     }
 
-    if (can_execute_cal_connect_kvcc) {
-      // 记录 CalConnectKVcc 开始时间
-      auto start_cal_connect_kvcc = std::chrono::high_resolution_clock::now();
-      CalConnectKVcc(kvcc_array, Io, J, T, Ro, Co, gain_mer);
-      // 记录 CalConnectKVcc 结束时间
-      auto end_cal_connect_kvcc = std::chrono::high_resolution_clock::now();
-      auto duration_cal_connect_kvcc =
-          std::chrono::duration_cast<std::chrono::seconds>(
-              end_cal_connect_kvcc - start_cal_connect_kvcc)
-              .count();
-      total_cal_connect_kvcc_time += duration_cal_connect_kvcc;
+    auto current_time = std::chrono::high_resolution_clock::now();
+    total_time = std::chrono::duration_cast<std::chrono::seconds>(current_time -
+                                                                  start_time)
+                     .count();
 
-      // 更新上一轮的结果
-      prev_Io = Io;
-      prev_J = J;
-      prev_T = T;
-      prev_Ro = Ro;
-      prev_Co = Co;
-      prev_gain_mer = gain_mer;
-    } else {
-      // 沿用上一轮的值
-      Io = prev_Io;
-      J = prev_J;
-      T = prev_T;
-      Ro = prev_Ro;
-      Co = prev_Co;
-      gain_mer = prev_gain_mer;
-    }
+    std::cout << "循环结束，最终插入边数量: " << total_Inserted_Edge.size()
+              << std::endl;
+    std::cout << "最终 b: " << b << std::endl;
+    std::cout << "总的 gain: " << total_gain << std::endl;
 
-    // std::cout << "T size after CalConnectKVcc: " << T.size() << std::endl;
-
-    // 记录 CalMulVerices 开始时间
-    auto start_cal_mul_verices = std::chrono::high_resolution_clock::now();
-    CalMulVerices(kvcc_array, Ie, MC, Re, Ce, gain_mul);
-    // 记录 CalMulVerices 结束时间
-    auto end_cal_mul_verices = std::chrono::high_resolution_clock::now();
-    auto duration_cal_mul_verices =
-        std::chrono::duration_cast<std::chrono::seconds>(end_cal_mul_verices -
-                                                         start_cal_mul_verices)
-            .count();
-    total_cal_mul_verices_time += duration_cal_mul_verices;
-
-    double ra = Ro;
-    double rb = Re;
-    double rc = 0;
-    int v = -1;
-    int single_vcc_idx = -1;
-
-    // 记录 ExpSinVertices 开始时间
-    auto start_exp_sin_vertices = std::chrono::high_resolution_clock::now();
-    std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_single;
-    ExpSinVertices(kvcc_array, rc, Inserted_Edge_single, v, single_vcc_idx,
-                   gain_sin);
-    // 记录 ExpSinVertices 结束时间
-    auto end_exp_sin_vertices = std::chrono::high_resolution_clock::now();
-    auto duration_exp_sin_vertices =
-        std::chrono::duration_cast<std::chrono::seconds>(end_exp_sin_vertices -
-                                                         start_exp_sin_vertices)
-            .count();
-    total_exp_sin_vertices_time += duration_exp_sin_vertices;
-
-    std::cout << "当前 ra: " << ra << ", rb: " << rb << ", rc: " << rc
+    // 输出各函数总耗时
+    std::cout << "CalConnectKVcc 总耗时: " << total_cal_connect_kvcc_time << " 秒"
+              << std::endl;
+    std::cout << "CalMulVerices 总耗时: " << total_cal_mul_verices_time << " 秒"
+              << std::endl;
+    std::cout << "ExpSinVertices 总耗时: " << total_exp_sin_vertices_time << " 秒"
+              << std::endl;
+    std::cout << "MerConnectKVcc 总耗时: " << total_mer_connect_kvcc_time << " 秒"
+              << std::endl;
+    std::cout << "ExpMulVertices 总耗时: " << total_exp_mul_vertices_time << " 秒"
               << std::endl;
 
-    double current_gain = 0.0;
-    if (ra >= rb && ra >= rc) {
-      std::cout << "选择 ra 分支" << std::endl;
-      if (!T.empty()) {
-        int idx = Io;
-        int jdx = J;
-        std::vector<int> t_ij = T.front();
-        T.assign(T.begin() + 1, T.end());
-        std::vector<int> t_ji = T.front();
-        T.assign(T.begin() + 1, T.end());
-        int mer_cost = Co;
-
-        // 记录 MerConnectKVcc 开始时间
-        auto start_mer_connect_kvcc = std::chrono::high_resolution_clock::now();
-        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_mc;
-        MerConnectKVcc(kvcc_array[idx], kvcc_array[jdx], t_ij, t_ji, ra,
-                       mer_cost, Inserted_Edge_mc);
-        // 记录 MerConnectKVcc 结束时间
-        auto end_mer_connect_kvcc = std::chrono::high_resolution_clock::now();
-        auto duration_mer_connect_kvcc =
-            std::chrono::duration_cast<std::chrono::seconds>(
-                end_mer_connect_kvcc - start_mer_connect_kvcc)
-                .count();
-        total_mer_connect_kvcc_time += duration_mer_connect_kvcc;
-
-        current_gain = gain_mer;
-        std::cout << "MerConnectKVcc 执行完毕，插入边数量: "
-                  << Inserted_Edge_mc.size() << std::endl;
-        if (b >= static_cast<int>(Inserted_Edge_mc.size())) {
-          total_Inserted_Edge.insert(Inserted_Edge_mc.begin(),
-                                     Inserted_Edge_mc.end());
-          b -= Inserted_Edge_mc.size();
-          InsertEdgesIntoGraph(Inserted_Edge_mc);
-          // 将 idx 和 jdx 对应的 kvcc 合并
-          TIntV merged_kvcc = kvcc_array[idx];
-          for (TIntV::TIter it = kvcc_array[jdx].BegI();
-               it < kvcc_array[jdx].EndI(); ++it) {
-            if (!merged_kvcc.IsIn(*it)) {
-              merged_kvcc.Add(*it);
-            }
-          }
-          kvcc_array[idx] = merged_kvcc;
-          // 移除 jdx 对应的 kvcc
-          kvcc_array.Del(jdx);
-          std::cout << "插入边成功，剩余 b: " << b << std::endl;
-        } else {
-          std::cout << "成本不足，程序结束" << std::endl;
-          break;
-        }
-      } else {
-        std::cout << "T 为空，跳过此分支" << std::endl;
-      }
-    } else if (rb >= ra && rb >= rc) {
-      std::cout << "选择 rb 分支" << std::endl;
-      if (!MC.empty()) {
-        int idx = Ie;
-        std::vector<int> mc_j = MC;
-        std::unordered_set<std::pair<int, int>, pair_hash> Inserted_Edge_emv;
-        TIntV mc_j_TIntV;
-        for (int vertex : mc_j) {
-          mc_j_TIntV.Add(vertex);
-        }
-
-        // 记录 ExpMulVertices 开始时间
-        auto start_exp_mul_vertices = std::chrono::high_resolution_clock::now();
-        ExpMulVertices(kvcc_array[idx], mc_j_TIntV, rb, Inserted_Edge_emv);
-        // 记录 ExpMulVertices 结束时间
-        auto end_exp_mul_vertices = std::chrono::high_resolution_clock::now();
-        auto duration_exp_mul_vertices =
-            std::chrono::duration_cast<std::chrono::seconds>(
-                end_exp_mul_vertices - start_exp_mul_vertices)
-                .count();
-        total_exp_mul_vertices_time += duration_exp_mul_vertices;
-
-        current_gain = gain_mul;
-        std::cout << "ExpMulVertices 执行完毕，插入边数量: "
-                  << Inserted_Edge_emv.size() << std::endl;
-        if (b >= static_cast<int>(Inserted_Edge_emv.size())) {
-          total_Inserted_Edge.insert(Inserted_Edge_emv.begin(),
-                                     Inserted_Edge_emv.end());
-          b -= Inserted_Edge_emv.size();
-          InsertEdgesIntoGraph(Inserted_Edge_emv);
-          // 将 mc_j_TIntV 中的点添加到 kvcc_array[idx]
-          for (TIntV::TIter it = mc_j_TIntV.BegI(); it < mc_j_TIntV.EndI();
-               ++it) {
-            if (!kvcc_array[idx].IsIn(*it)) {
-              kvcc_array[idx].Add(*it);
-            }
-          }
-          std::cout << "插入边成功，剩余 b: " << b << std::endl;
-        } else {
-          std::cout << "成本不足，程序结束" << std::endl;
-          break;
-        }
-      } else {
-        std::cout << "MC 为空，跳过此分支" << std::endl;
-      }
-    } else {
-      current_gain = gain_sin;
-      std::cout << "选择 rc 分支" << std::endl;
-      if (b >= static_cast<int>(Inserted_Edge_single.size())) {
-        total_Inserted_Edge.insert(Inserted_Edge_single.begin(),
-                                   Inserted_Edge_single.end());
-        b -= Inserted_Edge_single.size();
-        InsertEdgesIntoGraph(Inserted_Edge_single);
-        // 将顶点 v 加到下标为 single_vcc_idx 的 kvcc 中
-        if (!kvcc_array[single_vcc_idx].IsIn(v)) {
-          kvcc_array[single_vcc_idx].Add(v);
-        }
-        std::cout << "插入边成功，剩余 b: " << b << std::endl;
-      } else {
-        std::cout << "成本不足，程序结束" << std::endl;
-        break;
-      }
-    }
-    total_gain += current_gain;
-    round++;
-    std::cout << "第 " << round << " 轮循环结束，当前总 gain: " << total_gain
+    // 输出 b 消耗 25%、50%、75%、100% 时的时间和 gain
+    std::cout << "b 消耗 25% 时，时间: " << quarter_time
+              << " 秒，gain: " << quarter_gain << std::endl;
+    std::cout << "b 消耗 50% 时，时间: " << half_time
+              << " 秒，gain: " << half_gain << std::endl;
+    std::cout << "b 消耗 75% 时，时间: " << three_quarters_time
+              << " 秒，gain: " << three_quarters_gain << std::endl;
+    std::cout << "b 消耗 100% 时，时间: " << full_time
+              << " 秒，gain: " << full_gain << std::endl;
+    std::cout << "总耗时，时间: " << total_time << " 秒，gain: " << total_gain
               << std::endl;
 
-    // 更新上一轮的 ra 和 rb 值
-    prev_ra = ra;
-    prev_rb = rb;
-
-    // 检查 b 的消耗情况
-    if (initial_b - b >= quarter_b && quarter_time == 0) {
-      auto current_time = std::chrono::high_resolution_clock::now();
-      quarter_time = std::chrono::duration_cast<std::chrono::seconds>(
-                         current_time - start_time)
-                         .count();
-      quarter_gain = total_gain;
+    // 按行输出所有插入的边
+    std::cout << "所有插入的边：" << std::endl;
+    for (const auto& edge : allInsertedEdges) {
+        std::cout << edge.first << " " << edge.second << std::endl;
     }
-    if (initial_b - b >= half_b && half_time == 0) {
-      auto current_time = std::chrono::high_resolution_clock::now();
-      half_time = std::chrono::duration_cast<std::chrono::seconds>(
-                      current_time - start_time)
-                      .count();
-      half_gain = total_gain;
-    }
-    if (initial_b - b >= three_quarters_b && three_quarters_time == 0) {
-      auto current_time = std::chrono::high_resolution_clock::now();
-      three_quarters_time = std::chrono::duration_cast<std::chrono::seconds>(
-                                current_time - start_time)
-                                .count();
-      three_quarters_gain = total_gain;
-    }
-    if (b == 0 && full_time == 0) {
-      auto current_time = std::chrono::high_resolution_clock::now();
-      full_time = std::chrono::duration_cast<std::chrono::seconds>(
-                      current_time - start_time)
-                      .count();
-      full_gain = total_gain;
-    }
-  }
-
-  std::cout << "循环结束，最终插入边数量: " << total_Inserted_Edge.size()
-            << std::endl;
-  std::cout << "最终 b: " << b << std::endl;
-  std::cout << "总的 gain: " << total_gain << std::endl;
-
-  // 输出各函数总耗时
-  std::cout << "CalConnectKVcc 总耗时: " << total_cal_connect_kvcc_time << " 秒"
-            << std::endl;
-  std::cout << "CalMulVerices 总耗时: " << total_cal_mul_verices_time << " 秒"
-            << std::endl;
-  std::cout << "ExpSinVertices 总耗时: " << total_exp_sin_vertices_time << " 秒"
-            << std::endl;
-  std::cout << "MerConnectKVcc 总耗时: " << total_mer_connect_kvcc_time << " 秒"
-            << std::endl;
-  std::cout << "ExpMulVertices 总耗时: " << total_exp_mul_vertices_time << " 秒"
-            << std::endl;
-
-  // 输出 b 消耗 25%、50%、75%、100% 时的时间和 gain
-  std::cout << "b 消耗 25% 时，时间: " << quarter_time
-            << " 秒，gain: " << quarter_gain << std::endl;
-  std::cout << "b 消耗 50% 时，时间: " << half_time
-            << " 秒，gain: " << half_gain << std::endl;
-  std::cout << "b 消耗 75% 时，时间: " << three_quarters_time
-            << " 秒，gain: " << three_quarters_gain << std ::endl;
-  std::cout << "b 消耗 100% 时，时间: " << full_time
-            << " 秒，gain: " << full_gain << std::endl;
 }
 
 // void Master::Anchoring(string alg, string vcc_data) {
@@ -1387,7 +1501,13 @@ void Master::CalMulVerices(TIntVIntV& VCCs, int& i_star, vector<int>& mc_star,
     int level = 0;
     int clq_idx = 0;
     for (int layer = k - 1; layer > 0; layer--) {
-      // debug_print("S[" << i << "]: ");
+      // debug_print("S[" << layer << "]: ");
+      // for (auto it = S[layer].BegI(); it != S[layer].EndI(); ++it)
+      // {
+      //   cout<<*it<<endl;
+      // }
+      // cout << endl;
+      
       TIntV S_layer = S[layer];
       TIntV neigh_Union;
       TIntV S_layer_temp;
@@ -1395,7 +1515,7 @@ void Master::CalMulVerices(TIntVIntV& VCCs, int& i_star, vector<int>& mc_star,
       S_total.Clr();
       S_total.AddVMerged(S[layer]);
       // to be considered how to deal with?
-      // if (S_total.Len() < k - i + 1) continue;
+      if (S_total.Len() < k - i + 1) continue;
       PUNGraph sub_G = TSnap::GetSubGraph(G_Cand, S_total);
       // PUNGraph sub_core = TSnap::GetKCore(sub_G, k - i);
       // to be considered how to deal with clique size smaller than k - i + 1
@@ -1712,3 +1832,65 @@ void Master::ExpMulVertices(
   // 步骤 5: 返回插入的边集合 Inserted_Edge
   // return Inserted_Edge;
 }
+
+// // 辅助函数：计算图中所有点的k顶点连通能力值
+// std::vector<int> Master::calculateKVertexConnectivity(const TIntVIntV&
+// kvcc_array,
+//                                               int num_vertices) {
+//   std::vector<int> k_connectivity(num_vertices, 0);
+//   for (const auto& kvcc : kvcc_array) {
+//     int size = kvcc.size();
+//     for (int vertex : kvcc) {
+//       k_connectivity[vertex] = std::max(k_connectivity[vertex], size);
+//     }
+//   }
+//   return k_connectivity;
+// }
+
+// // 辅助函数：计算插入边后的收益
+// double Master::calculateGain(
+//     const TIntVIntV& original_kvcc_array,
+//     const std::unordered_set<std::pair<int, int>, pair_hash>& inserted_edges,
+//     const std::vector<int>& original_connectivity) {
+//   TIntVIntV new_kvcc_array = original_kvcc_array;
+//   for (const auto& edge : inserted_edges) {
+//     if(!G->IsEdge(edge.first, edge.second)) G->AddEdge(edge.first,
+//     edge.second);
+//   }
+//   int num_vertices = original_connectivity.size();
+//   std::vector<int> new_connectivity =
+//       calculateKVertexConnectivity(new_kvcc_array, num_vertices);
+//   double gain = 0;
+//   for (int i = 0; i < num_vertices; ++i) {
+//     gain += new_connectivity[i] - original_connectivity[i];
+//   }
+//   for (const auto& edge : inserted_edges) {
+//     if(G->IsEdge(edge.first, edge.second)) G->DelEdge(edge.first,
+//     edge.second);
+//   }
+//   return gain;
+// }
+
+// // 辅助函数：生成所有可能的b条边的组合
+// std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+// Master::generateEdgeCombinations(
+//     const std::unordered_set<std::pair<int, int>, pair_hash>&
+//     candidate_edges, int b) {
+//   std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+//   combinations; std::vector<bool> mask(candidate_edges.size());
+//   std::fill(mask.begin(), mask.begin() + b, true);
+
+//   std::vector<std::pair<int, int>> edge_list(candidate_edges.begin(),
+//                                              candidate_edges.end());
+//   do {
+//     std::unordered_set<std::pair<int, int>, pair_hash> combination;
+//     for (int i = 0; i < candidate_edges.size(); ++i) {
+//       if (mask[i]) {
+//         combination.insert(edge_list[i]);
+//       }
+//     }
+//     combinations.push_back(combination);
+//   } while (std::prev_permutation(mask.begin(), mask.end()));
+
+//   return combinations;
+// }

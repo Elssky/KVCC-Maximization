@@ -1,5 +1,6 @@
 #ifndef MASTER_H
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <limits>
 #include <queue>
@@ -13,7 +14,6 @@
 #include "cliques.h"
 #include "maxMatch.h"
 #include "utility.h"
-#include <chrono>
 using namespace std;
 
 typedef TVec<TInt> TIntV;
@@ -70,8 +70,11 @@ class Master {
   int k;
   int b;
   PUNGraph G;
-  Master(PUNGraph G, int k, int b);
-  void Anchoring(string alg, string vcc_data);
+  bool disable_cck;
+  bool disable_cmv;
+  Master(PUNGraph G, int k, int b, bool disable_cck, bool disable_cmv);
+  void Anchoring(string alg, string vcc_data, double threshold);
+  void Exact_Anchoring(string alg, string vcc_data);
   void GroupSelection_together(
       TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
       unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
@@ -114,7 +117,8 @@ class Master {
                      double& r_star, int& cost_star, double& best_gain);
 
   void ExpSinVertices(TIntVIntV& VCCs, double& r,
-                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge, int &v,  int& vcc_idx, double& best_gain);
+                      unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
+                      int& v, int& vcc_idx, double& best_gain);
 
   void MerConnectKVcc(TIntV& VCC_i, TIntV& VCC_j, vector<int> t_ij,
                       vector<int> t_ji, double r_ij, int cost,
@@ -138,5 +142,15 @@ class Master {
       }
     }
   }
+  std::vector<int> calculateKVertexConnectivity(const TIntVIntV& kvcc_array,
+                                                int num_vertices);
+  double calculateGain(
+      const TIntVIntV& original_kvcc_array,
+      const std::unordered_set<std::pair<int, int>, pair_hash>& inserted_edges,
+      const std::vector<int>& original_connectivity);
+  std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+  generateEdgeCombinations(
+      const std::unordered_set<std::pair<int, int>, pair_hash>& candidate_edges,
+      int b);
 };
 #endif
