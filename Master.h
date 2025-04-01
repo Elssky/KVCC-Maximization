@@ -1,5 +1,6 @@
 #ifndef MASTER_H
 #include <algorithm>
+#include <omp.h>
 #include <chrono>
 #include <iostream>
 #include <limits>
