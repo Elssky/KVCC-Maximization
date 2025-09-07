@@ -1276,7 +1276,7 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, int& i_star, int& j_star,
       int cost = k;
       int p_ij = get_common_set(*VCC_i, *VCC_j).size();
 
-      if (2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * VCCs[j].Len() < r_star)
+      if (2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * (p_ij - 2 * VCCs[i].Len() - VCCs[j].Len()) < r_star)
         continue;
       cost -= p_ij;
 
@@ -1305,7 +1305,7 @@ void Master::CalConnectKVcc(TIntVIntV& VCCs, int& i_star, int& j_star,
       cost -= MaxMatch;
 
       if (cost < k) {
-        double gain = 2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * VCCs[j].Len();
+        double gain = 2 * VCCs[i].Len() * VCCs[j].Len() + p_ij * (p_ij - 2 * VCCs[i].Len() - VCCs[j].Len());
         double r_ij = (double)gain / cost;
 #pragma omp critical
         {
