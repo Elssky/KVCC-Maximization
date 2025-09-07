@@ -15,6 +15,7 @@
 #include "cliques.h"
 #include "maxMatch.h"
 #include "utility.h"
+#include "Sweep_Algorithm.h"
 using namespace std;
 
 typedef TVec<TInt> TIntV;
@@ -143,12 +144,12 @@ class Master {
       }
     }
   }
-  std::vector<int> calculateKVertexConnectivity(const TIntVIntV& kvcc_array,
+  std::vector<long long> calculateKVertexConnectivity(const TIntVIntV& kvcc_array,
                                                 int num_vertices);
   double calculateGain(
       const TIntVIntV& original_kvcc_array,
       const std::unordered_set<std::pair<int, int>, pair_hash>& inserted_edges,
-      const std::vector<int>& original_connectivity);
+      const std::vector<long long>& original_connectivity);
   std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
   generateEdgeCombinations(
       const std::unordered_set<std::pair<int, int>, pair_hash>& candidate_edges,

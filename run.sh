@@ -28,25 +28,11 @@
 # dataset="web-webbase-2001-all"    # k = 1100 1200 1300 1400
 
 declare -A dataset_k_map=(
-    ["CA-CondMat"]="3 5"
-    ["CA-GrQc"]="3 5"
-    ["bauru5727"]="3 4"
-    ["bio-pdb1HYS"]="30 60"
-    ["cit-patent"]="13 15"
-    ["coAuthorsCitesee"]="7 9"
-    ["DBLP"]="7 9"
-    ["socfb-konect"]="6 7"
-    ["web-google-dir"]="13 15"
-    ["ca-HepPh"]="3 4"
-    ["ca-MathSciNet"]="5 7"
-    ["email-enron-large"]="4 5"
-    ["sc-shipsec5"]="6 16"
-    ["Stanford"]="15"
-    ["web-arabic-2005"]="4 5"
-    ["web-it-2004"]="11 13"
-    ["web-sk-2005"]="4 5"
-    ["web-uk-2005"]="100 150"
-    ["web-webbase-2001-all"]="1100 1200"
+    # ["CA-GrQc"]="7 9 11" # 没有 7,9,11
+    ["Brightkite_edges"]="11 13"
+    ["CA-AstroPh"]="11 13"
+    ["fb-pages-public-figure"]="11 13"
+    # ["soc-gemsec-RO"]="3 5 7 9"
 )
 
 # declare -A dataset_k_map=(
@@ -107,11 +93,17 @@ do
                 echo "Running: dataset=$dataset, k=$k, b=$b, alg=$alg"
                 (/usr/bin/time -v nohup ./main -d /home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/${dataset} -c /home/lhy/Snap-For-KVCC/examples/testgraph/community/$dataset -k $k -b $b -a $alg) >& "$output_file" &
                 pids+=($!)
+
+                # 如果当前运行的任务数达到 16 个，等待任意一个任务完成
                 if [ ${#pids[@]} -ge 16 ]; then
-                    # 等待第一个完成
-                    wait ${pids[0]}
+                    wait -n  # 等待任意一个后台任务完成
                     # 删除已完成任务的 PID
-                    pids=("${pids[@]:1}")
+                    for i in "${!pids[@]}"; do
+                        if ! kill -0 "${pids[i]}" 2>/dev/null; then
+                            unset "pids[i]"  # 删除已完成的 PID
+                        fi
+                    done
+                    pids=("${pids[@]}")  # 重新索引数组
                 fi
             done
         done

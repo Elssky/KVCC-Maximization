@@ -17,64 +17,72 @@ Master::Master(PUNGraph G, int k, int b, bool disable_cck, bool disable_cmv) {
   this->disable_cmv = disable_cmv;
 }
 
-// void Exact_Anchoring(std::string alg, std::string vcc_data) {
-//   double t_begin = (double)clock();
-//   int round = 0;
-//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
-//   TIntVIntV kvcc_array;
-//   TIntV kvcc, delta_S, delta_S_bar;
-//   TIntV Expanded_Vertex;
-//   Load_kvcc(kvcc_array, vcc_data);
-//   std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
-//   double total_gain = 0.0;
-//   auto start_time = std::chrono::high_resolution_clock::now();
+void Master::Exact_Anchoring(std::string alg, std::string vcc_data) {
+  double t_begin = (double)clock();
+  int round = 0;
+  double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
+  TIntVIntV kvcc_array;
+  TIntV kvcc, delta_S, delta_S_bar;
+  TIntV Expanded_Vertex;
+  Load_kvcc(kvcc_array, vcc_data);
+  std::unordered_set<std::pair<int, int>, pair_hash> total_Inserted_Edge;
+  double total_gain = 0.0;
+  auto start_time = std::chrono::high_resolution_clock::now();
 
-//   // 1. 用long
-//   //
-//   long计算图中所有点的k顶点连通能力值，每个点的k顶点连通能力值=他所属于的最大的那个kvcc的大小
-//   int num_vertices = 0;
-//   for (const auto& kvcc : kvcc_array) {
-//     for (int vertex : kvcc) {
-//       num_vertices = std::max(num_vertices, vertex + 1);
-//     }
-//   }
-//   std::vector<int> original_connectivity =
-//       calculateKVertexConnectivity(kvcc_array, num_vertices);
+  // 1. 用long
+  // long计算图中所有点的k顶点连通能力值，每个点的k顶点连通能力值=他所属于的最大的那个kvcc的大小
+  int num_vertices = 0;
+  for (TIntVIntV::TIter It = kvcc_array.BegI(); It < kvcc_array.EndI(); It++) {
+    const TIntV& kvcc = *It;
+    for (TIntV::TIter VIt = kvcc.BegI(); VIt < kvcc.EndI(); VIt++) {
+      int vertex = *VIt;
+      num_vertices = std::max(num_vertices, vertex + 1);
+    }
+  }
+  std::vector<long long> original_connectivity =
+      calculateKVertexConnectivity(kvcc_array, num_vertices);
 
-//   // 2. 枚举图中顶点对应完全图的边 - 图中所有的边， 作为候选集的边
-//   std::unordered_set<std::pair<int, int>, pair_hash> candidate_edges;
-//   for (int i = 0; i < num_vertices; ++i) {
-//     for (int j = i + 1; j < num_vertices; ++j) {
-//       if (G->IsEdge(i, j) == false) candidate_edges.insert({i, j});
-//     }
-//   }
+  // 2. 枚举图中顶点对应完全图的边 - 图中所有的边， 作为候选集的边
+  std::unordered_set<std::pair<int, int>, pair_hash> candidate_edges;
+  for (int i = 0; i < num_vertices; ++i) {
+    for (int j = i + 1; j < num_vertices; ++j) {
+      if (G->IsEdge(i, j) == false) candidate_edges.insert({i, j});
+    }
+  }
 
-//   // 3. 从候选集边中依次枚举，每次选择b条边，进行插入，并且计算收益
-//   std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
-//       edge_combinations = generateEdgeCombinations(candidate_edges, b);
-//   double max_gain = -DBL_MAX;
-//   std::unordered_set<std::pair<int, int>, pair_hash> best_edges;
-//   for (const auto& combination : edge_combinations) {
-//     double gain = calculateGain(kvcc_array, combination,
-//     original_connectivity); if (gain > max_gain) {
-//       max_gain = gain;
-//       best_edges = combination;
-//     }
-//   }
+  // 3. 从候选集边中依次枚举，每次选择b条边，进行插入，并且计算收益
+  std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+      edge_combinations = generateEdgeCombinations(candidate_edges, b);
+  double max_gain = -DBL_MAX;
+  std::unordered_set<std::pair<int, int>, pair_hash> best_edges;
+  for (const auto& combination : edge_combinations) {
+    double gain = calculateGain(kvcc_array, combination, original_connectivity);
+    if (gain > max_gain) {
+      max_gain = gain;
+      best_edges = combination;
+    }
+  }
 
-//   // 4. 统计收益最大的b条边
-//   total_Inserted_Edge = best_edges;
-//   total_gain = max_gain;
+  // 4. 统计收益最大的b条边
+  total_Inserted_Edge = best_edges;
+  total_gain = max_gain;
 
-//   auto end_time = std::chrono::high_resolution_clock::now();
-//   auto duration =
-//       std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time)
-//           .count();
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time)
+          .count();
 
-//   std::cout << "最终插入边数量: " << total_Inserted_Edge.size() << std::endl;
-//   std::cout << "总的 gain: " << total_gain << std::endl;
-//   std::cout << "算法耗时: " << duration << " 秒" << std::endl;
-// }
+  std::cout << "最终插入边数量: " << total_Inserted_Edge.size() << std::endl;
+  std::cout << "总的 gain: " << total_gain << std::endl;
+  std::cout << "算法耗时: " << duration << " 秒" << std::endl;
+
+
+  // 按行输出所有插入的边
+  std::cout << "所有插入的边：" << std::endl;
+  for (const auto& edge : total_Inserted_Edge) {
+    std::cout << edge.first << " " << edge.second << std::endl;
+  }
+}
 
 void Master::Anchoring(std::string alg, std::string vcc_data,
                        double threshold) {
@@ -438,132 +446,6 @@ void Master::Anchoring(std::string alg, std::string vcc_data,
   }
 }
 
-// void Master::Anchoring(string alg, string vcc_data) {
-//   double t_begin = (double)clock();
-//   int round = 0;
-//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
-//   TIntVIntV kvcc_array;
-//   TIntV kvcc, delta_S, delta_S_bar;
-//   TIntV Expanded_Vertex;
-//   Load_kvcc(kvcc_array, vcc_data);
-//   // select kvcc to expand
-//   // kvcc = kvcc_array[1];
-//   // unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-//   vector<int> Io, Ie, J;
-//   vector<double> Ro, Re;
-//   vector<vector<int>> T, MC;
-//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-
-//   CalConnectKVcc(kvcc_array, Io, J, T, Ro);
-//   CalMulVerices(kvcc_array, Ie, MC, Re);
-
-//   double ra = *Ro.begin();
-//   double rb = *Re.begin();
-//   double rc;
-//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge_single;
-//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge_multi;
-//   ExpSinVertex(kvcc_array, rc, Inserted_Edge_single);
-
-//   if (ra >= rb && ra >= rc) {
-//     alg = "m";
-//   }
-
-//   // while (acost < b) {
-//   //   if (!Ro.empty() && !Re.empty()) {
-//   //     int ra = *Ro.begin();
-//   //     int rb = *Re.begin();
-//   //     ExpSinVertex(kvcc_array, r, Inserted_Edge);
-//   //     // std::cout << "ra: " << ra << ", rb: " << rb << std::endl;
-//   //   } else {
-//   //     break;
-//   //   }
-//   // }
-
-//   // while (acost < b) {
-//   //   cout << " -- Anchoring round: " << round++ << endl;
-//   //   double vertex_begin = (double)clock();
-//   //   double node_score = 0;
-
-//   //   // Compute by Multiple Vertex Anchoring
-//   //   // vector<double> group;
-
-//   // }
-
-//   // cout << "acost: " << acost << endl;
-//   // cout << "gain: " << Expanded_Vertex.Len() << endl;
-//   // cout << "Expanded_Vertex:";
-//   // for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI <
-//   Expanded_Vertex.EndI();
-//   //      NI++) {
-//   //   cout << *NI << " ";
-//   // }
-//   // cout << endl;
-//   // double t_end = (double)clock();
-//   // cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC
-//   <<
-//   // "s."
-//   //      << endl;
-// }
-
-// void Master::Anchoring(string alg, string vcc_data) {
-//   double t_begin = (double)clock();
-//   int round = 0;
-//   double group_anchor_time = 0.0, vertex_anchor_time = 0.0;
-//   TIntVIntV kvcc_array;
-//   TIntV kvcc, delta_S, delta_S_bar;
-//   TIntV Expanded_Vertex;
-//   Load_kvcc(kvcc_array, vcc_data);
-//   // select kvcc to expand
-//   kvcc = kvcc_array[1];
-//   unordered_set<pair<int, int>, pair_hash> Inserted_Edge;
-//   while (acost < b) {
-//     cout << " -- Anchoring round: " << round++ << endl;
-//     double vertex_begin = (double)clock();
-//     double node_score = 0;
-
-//     // Compute by Multiple Vertex Anchoring
-//     // vector<double> group;
-
-//     int insEdge_size = Inserted_Edge.size();
-//     if (alg == string("t")) {
-//       GroupSelection_together(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-//                               Expanded_Vertex);
-//     } else if (alg == string("m")) {
-//       GroupSelection_multi_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-//                                   Expanded_Vertex);
-//     } else if (alg == string("s")) {
-//       GroupSelection_single_vertex(kvcc, delta_S, delta_S_bar, Inserted_Edge,
-//                                    Expanded_Vertex);
-//     } else if (alg == string("mo")) {
-//       Merge_overlap_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
-//     } else if (alg == string("ma")) {
-//       Merge_adjacent_vcc(kvcc_array, Inserted_Edge, Expanded_Vertex);
-//     } else {
-//       cout << "wrong alg parameter" << endl;
-//       return;
-//     }
-//     // if no edge can be inserted, stop
-//     if (insEdge_size == Inserted_Edge.size()) {
-//       break;
-//     }
-//   }
-//   cout << "acost: " << acost << endl;
-//   cout << "gain: " << Expanded_Vertex.Len() << endl;
-//   cout << "Expanded_Vertex:";
-//   for (TIntV::TIter NI = Expanded_Vertex.BegI(); NI < Expanded_Vertex.EndI();
-//        NI++) {
-//     cout << *NI << " ";
-//   }
-//   cout << endl;
-//   double t_end = (double)clock();
-//   cout << "the anchoring time is:" << (t_end - t_begin) / CLOCKS_PER_SEC <<
-//   "s."
-//        << endl;
-// }
-
-/* together 和 multi的区别在于同时考虑所有不同S_i层级的clique，
-而multi是i从大到小考虑
-*/
 void Master::GroupSelection_together(
     TIntV& G_S, TIntV& delta_S, TIntV& delta_S_bar,
     unordered_set<pair<int, int>, pair_hash>& Inserted_Edge,
@@ -1602,8 +1484,8 @@ void Master::ExpSinVertices(
   VCCs.Sort();
   TIntV VCC_max = VCCs.Last();
 
-  // Parallelize the outer loop over VCCs
-  #pragma omp parallel
+// Parallelize the outer loop over VCCs
+#pragma omp parallel
   {
     // Local variables for each thread to avoid race conditions
     double local_r = r;
@@ -1614,7 +1496,7 @@ void Master::ExpSinVertices(
     TIntV local_best_in_neighs;
     double local_best_gain = best_gain;
 
-    #pragma omp for nowait
+#pragma omp for nowait
     for (int i = VCCs.Len() - 1; i >= 0; --i) {
       if (VCCs[i].Len() < (2 * VCC_max.Len() - k + 2) / (2 * k - 2)) {
         continue;
@@ -1626,8 +1508,8 @@ void Master::ExpSinVertices(
       G_sub.AddVMerged(delta_S_bar);
       PUNGraph G_Cand = TSnap::GetSubGraph(G, G_sub);
 
-      // Inner loop over delta_S_bar can also be parallelized
-      #pragma omp parallel for
+// Inner loop over delta_S_bar can also be parallelized
+#pragma omp parallel for
       for (int j = 0; j < delta_S_bar.Len(); ++j) {
         TInt u = delta_S_bar[j];
         TIntV nb_u1, nb_u2;
@@ -1650,14 +1532,14 @@ void Master::ExpSinVertices(
           local_best_v = u;
           local_best_vcc = Vcc_i;
           local_best_i = i;
-          local_best_in_neighs = nb_u1; // Assuming nb_u1 is the in_neighs
+          local_best_in_neighs = nb_u1;  // Assuming nb_u1 is the in_neighs
           local_best_gain = gain;
         }
       }
     }
 
-    // Critical section to update global best values
-    #pragma omp critical
+// Critical section to update global best values
+#pragma omp critical
     {
       if (local_r > r) {
         r = local_r;
@@ -1872,64 +1754,78 @@ void Master::ExpMulVertices(
   // return Inserted_Edge;
 }
 
-// // 辅助函数：计算图中所有点的k顶点连通能力值
-// std::vector<int> Master::calculateKVertexConnectivity(const TIntVIntV&
-// kvcc_array,
-//                                               int num_vertices) {
-//   std::vector<int> k_connectivity(num_vertices, 0);
-//   for (const auto& kvcc : kvcc_array) {
-//     int size = kvcc.size();
-//     for (int vertex : kvcc) {
-//       k_connectivity[vertex] = std::max(k_connectivity[vertex], size);
-//     }
-//   }
-//   return k_connectivity;
-// }
+// 辅助函数：计算图中所有点的k顶点连通能力值
+std::vector<long long> Master::calculateKVertexConnectivity(
+    const TIntVIntV& kvcc_array, int num_vertices) {
+  std::vector<long long> k_connectivity(num_vertices, 0);
+  // 遍历每个 kvcc，更新每个顶点的 k 顶点连通能力值
+  for (TIntVIntV::TIter It = kvcc_array.BegI(); It < kvcc_array.EndI(); It++) {
+    const TIntV& kvcc = *It;
+    int kvcc_size = kvcc.Len();
+    for (TIntV::TIter VIt = kvcc.BegI(); VIt < kvcc.EndI(); VIt++) {
+      int vertex = *VIt;
+      k_connectivity[vertex] =
+          std::max(k_connectivity[vertex], static_cast<long long>(kvcc_size));
+    }
+  }
+  return k_connectivity;
+}
 
-// // 辅助函数：计算插入边后的收益
-// double Master::calculateGain(
-//     const TIntVIntV& original_kvcc_array,
-//     const std::unordered_set<std::pair<int, int>, pair_hash>& inserted_edges,
-//     const std::vector<int>& original_connectivity) {
-//   TIntVIntV new_kvcc_array = original_kvcc_array;
-//   for (const auto& edge : inserted_edges) {
-//     if(!G->IsEdge(edge.first, edge.second)) G->AddEdge(edge.first,
-//     edge.second);
-//   }
-//   int num_vertices = original_connectivity.size();
-//   std::vector<int> new_connectivity =
-//       calculateKVertexConnectivity(new_kvcc_array, num_vertices);
-//   double gain = 0;
-//   for (int i = 0; i < num_vertices; ++i) {
-//     gain += new_connectivity[i] - original_connectivity[i];
-//   }
-//   for (const auto& edge : inserted_edges) {
-//     if(G->IsEdge(edge.first, edge.second)) G->DelEdge(edge.first,
-//     edge.second);
-//   }
-//   return gain;
-// }
+// 辅助函数：计算插入边后的收益
+double Master::calculateGain(
+    const TIntVIntV& original_kvcc_array,
+    const std::unordered_set<std::pair<int, int>, pair_hash>& inserted_edges,
+    const std::vector<long long>& original_connectivity) {
 
-// // 辅助函数：生成所有可能的b条边的组合
-// std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
-// Master::generateEdgeCombinations(
-//     const std::unordered_set<std::pair<int, int>, pair_hash>&
-//     candidate_edges, int b) {
-//   std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
-//   combinations; std::vector<bool> mask(candidate_edges.size());
-//   std::fill(mask.begin(), mask.begin() + b, true);
+  for (const auto& edge : inserted_edges) {
+    if (!G->IsEdge(edge.first, edge.second))
+      G->AddEdge(edge.first, edge.second);
+  }
 
-//   std::vector<std::pair<int, int>> edge_list(candidate_edges.begin(),
-//                                              candidate_edges.end());
-//   do {
-//     std::unordered_set<std::pair<int, int>, pair_hash> combination;
-//     for (int i = 0; i < candidate_edges.size(); ++i) {
-//       if (mask[i]) {
-//         combination.insert(edge_list[i]);
-//       }
-//     }
-//     combinations.push_back(combination);
-//   } while (std::prev_permutation(mask.begin(), mask.end()));
+  VCCE_S VCCE_S(G, k, 1);
+  PUNGraph tmp = TSnap::GetKCore(G, k);
+  TIntVIntV VCCE_S_res = VCCE_S.KVCC_ENUM(VCCE_S.G, VCCE_S.k);
 
-//   return combinations;
-// }
+  for (TIntVIntV::TIter GI = VCCE_S_res.BegI(); GI < VCCE_S_res.EndI(); GI++) {
+    GI->Sort();
+  }
+  VCCE_S_res.Sort();
+
+  TIntVIntV new_kvcc_array = VCCE_S_res;
+
+  int num_vertices = original_connectivity.size();
+  std::vector<long long> new_connectivity =
+      calculateKVertexConnectivity(new_kvcc_array, num_vertices);
+  double gain = 0;
+  for (int i = 0; i < num_vertices; ++i) {
+    gain += new_connectivity[i] - original_connectivity[i];
+  }
+  for (const auto& edge : inserted_edges) {
+    if (G->IsEdge(edge.first, edge.second)) G->DelEdge(edge.first, edge.second);
+  }
+  return gain;
+}
+
+// 辅助函数：生成所有可能的b条边的组合
+std::vector<std::unordered_set<std::pair<int, int>, pair_hash>>
+Master::generateEdgeCombinations(
+    const std::unordered_set<std::pair<int, int>, pair_hash>& candidate_edges,
+    int b) {
+  std::vector<std::unordered_set<std::pair<int, int>, pair_hash>> combinations;
+  std::vector<bool> mask(candidate_edges.size());
+  std::fill(mask.begin(), mask.begin() + b, true);
+
+  std::vector<std::pair<int, int>> edge_list(candidate_edges.begin(),
+                                             candidate_edges.end());
+  do {
+    std::unordered_set<std::pair<int, int>, pair_hash> combination;
+    for (int i = 0; i < candidate_edges.size(); ++i) {
+      if (mask[i]) {
+        combination.insert(edge_list[i]);
+      }
+    }
+    combinations.push_back(combination);
+  } while (std::prev_permutation(mask.begin(), mask.end()));
+
+  return combinations;
+}

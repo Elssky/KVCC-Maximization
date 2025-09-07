@@ -9,4 +9,4 @@
 *.ex
 *.tar
 *.out
-*.json
+/.vscode/
