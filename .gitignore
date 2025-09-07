@@ -3,3 +3,10 @@
 /experiments*/
 /main
 *.txt
+*.py
+*.csv
+*.sh
+*.ex
+*.tar
+*.out
+*.json
