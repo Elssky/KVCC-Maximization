@@ -1,0 +1,12 @@
+/dataset*/
+/output*/
+/experiments*/
+/main
+*.txt
+*.py
+*.csv
+*.sh
+*.ex
+*.tar
+*.out
+/.vscode/

@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
   printf("G: \nnode_nums = %d, edge_nums = %d\n", G->GetNodes(), G->GetEdges());
 
   Master master(G, k, b, dis_cck, dis_cmv);
-  master.Anchoring(alg, vcc_data, h);
-  // master.Exact_Anchoring(alg, vcc_data);
+  // master.Anchoring(alg, vcc_data, h);
+  master.Exact_Anchoring(alg, vcc_data);
   return 0;
 }

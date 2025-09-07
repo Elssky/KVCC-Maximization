@@ -8,13 +8,15 @@
             "program": "${workspaceFolder}/main",
             "args": [
                 "-d",
-                "CA-GrQc",
+                "/home/lhy/Snap-For-KVCC/examples/KVCC-Maximization/dataset/useful/Brightkite_edges",
+                "-c",
+                "/home/lhy/Snap-For-KVCC/examples/testgraph/community/Brightkite_edges",
                 "-k",
-                "5",
+                "4",
                 "-b",
-                "10",
+                "1",
                 "-a",
-                "m"
+                "exact"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
